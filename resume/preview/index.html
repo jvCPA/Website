@@ -143,29 +143,33 @@ html { scrollbar-color: #b9bde0 var(--canvas); }
 
 /* ── Hero ──────────────────────────────────────────────────────────────────── */
 .hero {
-  --figure-x: 70%;
+  --figure-x: 50%;
   position: relative;
-  min-height: clamp(640px, calc(100svh - 72px), 960px);
+  min-height: clamp(600px, calc(100svh - 72px), 980px);
   background: var(--stage);
   color: var(--on-dark);
   overflow: hidden;
   isolation: isolate;
 }
 .hero__stage { position: absolute; inset: 0; z-index: 0; }
-#scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: pan-y; opacity: 0; transition: opacity 1.2s var(--ease-out); }
-.is-ready #scene { opacity: 1; }
-.hero__inner { position: relative; z-index: 2; display: flex; align-items: center; min-height: inherit; pointer-events: none; }
-.hero__copy { max-width: 600px; padding-block: 96px 120px; pointer-events: auto; transition: opacity 0.5s var(--ease-out), transform 0.5s var(--ease-out); }
-.hero__name {
-  font-size: clamp(50px, 6vw, 88px);
-  font-weight: 480; line-height: 0.98; letter-spacing: -0.03em;
-  text-wrap: balance;
+/* the canvas fades out at its edges so the stage melts into the page */
+#scene {
+  position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: pan-y;
+  opacity: 0; transition: opacity 1.2s var(--ease-out);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 9%, #000 84%, transparent 100%), linear-gradient(to right, transparent 0, #000 7%, #000 93%, transparent 100%); /* taste-skill-ignore: edge fade for a seamless hero */
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to bottom, transparent 0, #000 9%, #000 84%, transparent 100%), linear-gradient(to right, transparent 0, #000 7%, #000 93%, transparent 100%); /* taste-skill-ignore */
+  mask-composite: intersect;
 }
-.hero__headline { margin-top: 28px; font-size: clamp(18px, 1.6vw, 22px); font-weight: 450; color: var(--periwinkle); letter-spacing: -0.003em; }
-.hero__tagline { margin-top: 16px; max-width: 34em; font-size: clamp(16px, 1.35vw, 18px); font-weight: 380; line-height: 1.55; color: var(--on-dark); }
-.hero__actions { margin-top: 40px; display: flex; flex-wrap: wrap; gap: 12px; }
-@media (min-width: 901px) { .hero__copy { max-width: min(600px, 52vw); } }
-.is-panel-open .hero__copy { opacity: 0; transform: translateX(-24px); pointer-events: none; }
+.is-ready #scene { opacity: 1; }
+.hero__inner { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+/* while a certificate is open, quiet the orbit behind the panel text */
+.hero__stage::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.6s var(--ease-out);
+  background: linear-gradient(to right, rgba(10, 19, 48, 0.92) 0%, rgba(10, 19, 48, 0.8) 30%, rgba(10, 19, 48, 0) 50%); /* taste-skill-ignore: scrim behind panel text */
+}
+.is-panel-open .hero__stage::after { opacity: 1; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; } /* taste-skill-ignore: visually hidden */
 
 .loader {
   position: absolute; left: var(--figure-x); top: 50%; transform: translate(-50%, -50%);
@@ -178,20 +182,13 @@ html { scrollbar-color: #b9bde0 var(--canvas); }
 .loader__bar { stroke: var(--periwinkle); stroke-linecap: round; stroke-dasharray: 132; stroke-dashoffset: 132; transition: stroke-dashoffset 0.3s; }
 .is-ready .loader, .is-static .loader { opacity: 0; pointer-events: none; }
 
-.stage-hint {
-  position: absolute; left: var(--figure-x); bottom: 28px; transform: translateX(-50%);
-  color: var(--fog); font-size: 14px; opacity: 0; transition: opacity 0.8s 1.2s; white-space: nowrap;
-}
-.is-ready .stage-hint { opacity: 0.7; }
-.is-static .stage-hint { display: none; }
-
 /* Static hero: reduced motion, no WebGL, or the 3D script could not load */
-.still { position: absolute; inset: 0; display: grid; grid-template-columns: auto auto; align-items: center; justify-content: end; gap: 40px; padding: 72px max(var(--gutter), calc((100% - 1280px) / 2 + var(--gutter))) 72px 50%; }
+.still { position: absolute; inset: 0; display: grid; grid-template-columns: auto auto; align-items: center; justify-content: center; gap: clamp(32px, 5vw, 72px); padding: 64px var(--gutter); }
 .still[hidden] { display: none; }
 .still__figure { position: relative; width: clamp(150px, 15vw, 210px); }
 .still__figure::after {
-  content: ''; position: absolute; left: 50%; bottom: -4px; width: 150%; height: 26px; transform: translateX(-50%); z-index: -1;
-  border-radius: 50%; background: var(--stage-raised);
+  content: ''; position: absolute; left: 50%; bottom: -10px; width: 120%; height: 22px; transform: translateX(-50%); z-index: -1;
+  border-radius: 50%; background: radial-gradient(closest-side, rgba(2, 5, 16, 0.7), rgba(2, 5, 16, 0)); /* taste-skill-ignore: contact shadow */
 }
 .still__figure img { width: 100%; height: auto; }
 .still__grid { display: grid; grid-template-columns: repeat(2, 132px); gap: 12px; }
@@ -220,11 +217,10 @@ html { scrollbar-color: #b9bde0 var(--canvas); }
 
 /* Detail panel for a certificate pulled out of the orbit */
 .cert-panel {
-  position: absolute; left: var(--gutter); top: 50%; z-index: 4; width: min(440px, 38vw);
+  position: absolute; left: max(var(--gutter), calc((100% - 1280px) / 2 + var(--gutter))); top: 50%; width: min(420px, 34vw);
   transform: translateY(-50%); pointer-events: auto;
   animation: panel-in 0.6s var(--ease-out) both;
 }
-.cert-panel[hidden] { display: none; }
 @keyframes panel-in { from { opacity: 0; transform: translate(-16px, -50%); } }
 .cert-panel__title { font-size: clamp(28px, 2.8vw, 40px); font-weight: 480; line-height: 1.1; letter-spacing: -0.02em; text-wrap: balance; }
 .cert-panel__issuer { margin-top: 12px; color: var(--periwinkle); font-size: 18px; }
@@ -234,13 +230,10 @@ html { scrollbar-color: #b9bde0 var(--canvas); }
 .cert-panel__actions { margin-top: 32px; display: flex; flex-wrap: wrap; gap: 10px; }
 
 @media (max-width: 900px) {
-  .hero { min-height: 0; --figure-x: 50%; }
-  .hero__inner { display: block; min-height: 0; }
-  .hero__copy { padding-block: 48px 0; }
-  .hero__stage { position: relative; height: clamp(480px, 128vw, 620px); margin-top: 8px; }
-  .hero { display: flex; flex-direction: column-reverse; }
+  .hero { min-height: clamp(480px, 128vw, 640px); }
+  .hero__stage::after { display: none; }
   .cert-panel {
-    position: absolute; top: auto; bottom: 16px; left: 16px; right: 16px; width: auto; transform: none;
+    top: auto; bottom: 16px; left: 16px; right: 16px; width: auto; transform: none;
     padding: 20px; border-radius: var(--r-lg); background: rgba(18, 29, 64, 0.94);
     animation-name: sheet-in;
   }
@@ -252,24 +245,23 @@ html { scrollbar-color: #b9bde0 var(--canvas); }
   .cert-panel__meta dd { font-size: 14px; margin-top: 0; }
   .cert-panel__actions { margin-top: 14px; gap: 8px; }
   .cert-panel__actions .btn { --h: 36px; padding: 0 14px; font-size: 14px; }
-  .is-panel-open .hero__copy { opacity: 1; transform: none; pointer-events: auto; }
-  .hero__inner { position: static; }
-  .still { position: absolute; padding: 24px var(--gutter); grid-template-columns: auto 1fr; justify-content: center; gap: 20px; }
+  .still { grid-template-columns: auto 1fr; gap: 20px; }
   .still__figure { width: clamp(120px, 34vw, 170px); }
   .still__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 280px; }
-  .stage-hint { bottom: 16px; }
 }
 
-/* ── Stats strip ───────────────────────────────────────────────────────────── */
-.stats { background: var(--stage); color: var(--fog); }
-.stats__list { display: flex; flex-wrap: wrap; gap: 8px 48px; padding-block: 24px 40px; }
+/* ── Stats strip: still on the stage, then the stage fades into the page ─── */
+.stats { position: relative; background: var(--stage); color: var(--fog); }
+.stats__list { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 48px; padding-block: 8px 24px; }
 .stats__list li { font-size: 14px; display: flex; align-items: baseline; gap: 8px; }
 .stats__list strong { color: var(--on-dark); font-size: 24px; font-weight: 480; font-variant-numeric: tabular-nums; }
-.stats:empty, .stats[hidden] { display: none; }
-@media (max-width: 900px) { .stats__list { padding-top: 8px; gap: 6px 28px; } }
+.stats[hidden] { display: none; }
+.stage-fade { height: clamp(96px, 12vw, 180px); background: linear-gradient(to bottom, var(--stage), var(--canvas)); } /* taste-skill-ignore: the brief asks for a seamless hero */
+@media (max-width: 900px) { .stats__list { gap: 6px 28px; } }
 
 /* ── Sections ──────────────────────────────────────────────────────────────── */
 .section { padding-block: var(--section) 0; }
+.stage-fade + .section { padding-top: clamp(24px, 4vw, 64px); }
 .section:last-of-type { padding-bottom: var(--section); }
 
 /* About */
@@ -624,19 +616,10 @@ window.google = { script: { run: (function () {
           <div class="still__figure" id="still-figure"></div>
           <ul class="still__grid" id="still-grid" aria-label="Featured certificates"></ul>
         </figure>
-        <p class="stage-hint" id="stage-hint" aria-hidden="true">Drag to turn · Click a certificate</p>
       </div>
 
       <div class="wrap hero__inner">
-        <div class="hero__copy" id="hero-copy">
-          <h1 class="hero__name" id="hero-title" data-bind="name"></h1>
-          <p class="hero__headline" data-bind="headline"></p>
-          <p class="hero__tagline" data-bind="tagline"></p>
-          <div class="hero__actions">
-            <a class="btn btn--primary" href="#work" data-scroll>View my work</a>
-            <a class="btn btn--glass" href="#contact" data-scroll>Contact me</a>
-          </div>
-        </div>
+        <h1 class="sr-only" id="hero-title" data-bind="name"></h1>
 
         <aside class="cert-panel" id="cert-panel" aria-live="polite" hidden>
           <h2 class="cert-panel__title" id="cp-title"></h2>
@@ -663,6 +646,7 @@ window.google = { script: { run: (function () {
     <section class="stats" id="stats" aria-label="At a glance">
       <ul class="wrap stats__list" id="stats-list"></ul>
     </section>
+    <div class="stage-fade" aria-hidden="true"></div>
 
     <!-- ─── About ────────────────────────────────────────────── -->
     <section class="section about" id="about" aria-labelledby="about-title">
@@ -1126,7 +1110,7 @@ window.google = { script: { run: (function () {
 
   <script type="module">
 /*
- * Hero stage: a 360° photo turntable on a glowing plinth, with the featured certificates
+ * Hero stage: a 360° photo turntable, centred, with the featured certificates
  * orbiting in 3D. Falls back to the still hero (App.html) on any failure.
  */
 import * as THREE from 'three';
@@ -1155,6 +1139,7 @@ async function start() {
   const canvas = $('scene');
 
   let sheen = null; // shared glass texture for the certificate cards
+  let orbitSpin = 0; // extra orbit angle (radians) driven by dragging, shared by every certificate
   const COLORS = { stage: 0x0a1330, raised: 0x121d40, accent: 0x5266eb, periwinkle: 0x9cb4e8 };
   const mqMobile = window.matchMedia('(max-width: 900px)');
   const isMobile = () => mqMobile.matches;
@@ -1214,27 +1199,11 @@ async function start() {
   ]);
   const [atlasTex, ...certTex] = textures;
 
-  // ── Plinth, contact shadow, glow ─────────────────────────────────────────
-  const plinth = new THREE.Group();
-  scene.add(plinth);
-  const base = new THREE.Mesh(
-    new THREE.CylinderGeometry(1.25, 1.36, 0.16, 96),
-    new THREE.MeshStandardMaterial({ color: COLORS.raised, metalness: 0.7, roughness: 0.32 })
-  );
-  base.position.y = -0.08;
-  plinth.add(base);
-
-  const ringMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(COLORS.accent).multiplyScalar(3), toneMapped: false });
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.255, 0.012, 8, 160), ringMat);
-  ring.rotation.x = Math.PI / 2;
-  ring.position.y = 0.002;
-  plinth.add(ring);
-
-  plinth.add(flatDisc(3.4, radialTexture([[0, 'rgba(82,102,235,0.32)'], [0.4, 'rgba(82,102,235,0.10)'], [1, 'rgba(82,102,235,0)']]), THREE.AdditiveBlending, -0.159));
-  // soft contact shadow under the feet (part of the 3D stage, asked for in the brief) taste-skill-ignore
-  const shadow = flatDisc(1.9, radialTexture([[0, 'rgba(2,5,16,0.85)'], [0.45, 'rgba(2,5,16,0.45)'], [1, 'rgba(2,5,16,0)']]), THREE.NormalBlending, 0.004); // taste-skill-ignore
-  shadow.scale.set(1, 0.42, 1);
-  plinth.add(shadow);
+  // ── Soft contact shadow under the feet (no platform) ───────────────────── taste-skill-ignore
+  // taste-skill-ignore: grounding shadow for the figure
+  const shadow = flatDisc(1.9, radialTexture([[0, 'rgba(2,5,16,0.8)'], [0.45, 'rgba(2,5,16,0.4)'], [1, 'rgba(2,5,16,0)']]), THREE.NormalBlending, 0.004); // taste-skill-ignore
+  shadow.scale.set(1, 0.4, 1);
+  scene.add(shadow);
 
   // ── Figure: photo turntable (or a 3D avatar if assets/avatar.glb exists) ─
   const FIG_H = 3.3; // head-to-feet height in world units
@@ -1290,17 +1259,16 @@ async function start() {
     camera.aspect = W / H;
     const tan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
     if (isMobile()) {
-      orbitScale = 0.72;
-      const needHalfW = 2.15;
+      orbitScale = 0.64;
+      const needHalfW = 1.9;
       camera.position.set(0, 1.85, Math.max(9.5, needHalfW / (tan * camera.aspect)));
       camera.clearViewOffset();
     } else {
+      // figure centred; keep the whole orbit inside the frame
       orbitScale = 1;
-      // keep room for the orbit on the right of the figure (figure sits at 69% of the width)
-      const needRight = 2.7;
-      const dist = Math.max(9.6, needRight / (tan * camera.aspect * 0.62));
-      camera.position.set(0, 1.85, dist);
-      camera.setViewOffset(W, H, -0.19 * W, 0, W, H);
+      const needHalfW = 3.2;
+      camera.position.set(0, 1.85, Math.max(8.8, needHalfW / (tan * camera.aspect)));
+      camera.clearViewOffset();
     }
     baseCam.copy(camera.position);
     camera.lookAt(LOOK);
@@ -1325,6 +1293,8 @@ async function start() {
       }
       rot.vel += (target - rot.vel) * (1 - Math.exp(-dt * (rot.hold > 0 ? 5 : 1.6)));
       rot.angle += rot.vel * dt;
+      // the part of the spin that comes from the user's fling also carries the certificates
+      orbitSpin += THREE.MathUtils.degToRad(rot.vel - target) * dt * 0.8;
     }
     if (rot.angle >= 360) {
       rot.angle -= 360;
@@ -1377,6 +1347,7 @@ async function start() {
       const dt = Math.max(1, now - pointer.lastT) / 1000;
       pointer.moved += Math.abs(dx) + Math.abs(e.clientY - pointer.startY) * 0.2;
       rot.angle += dx * 0.4;
+      orbitSpin += THREE.MathUtils.degToRad(dx * 0.4) * 0.8; // certificates follow the drag
       rot.vel = THREE.MathUtils.clamp(rot.vel * 0.5 + (dx * 0.4 / dt) * 0.5, -500, 500);
       pointer.lastX = e.clientX;
       pointer.lastT = now;
@@ -1511,7 +1482,7 @@ async function start() {
 
     // where a pulled-out card sits: in front of the figure, toward the camera
     const mobile = isMobile();
-    frontPos.set(0, mobile ? 3.05 : 1.75, 0).lerp(camera.position, mobile ? 0.3 : 0.5);
+    frontPos.set(mobile ? 0 : 1.1, mobile ? 3.05 : 1.75, 0).lerp(camera.position, mobile ? 0.3 : 0.5);
 
     for (const card of cards) {
       const paused = card.hover || card.state !== 'orbit';
@@ -1549,7 +1520,6 @@ async function start() {
     }
 
     particles.material.uniforms.uTime.value = now;
-    ringMat.color.setRGB(0.32, 0.4, 0.92).multiplyScalar(1.7 + Math.sin(now * 1.4) * 0.25);
 
     if (props) props.render(renderer, camera, now, scene);
     if (composer) composer.render(dt);
@@ -1701,7 +1671,7 @@ async function start() {
     group.add(hit);
 
     // Each card gets its own tilted orbit, radius, speed and bob
-    const radius = [1.85, 2.1, 1.7, 2.25, 1.95, 1.75, 2.15, 1.9][i % 8];
+    const radius = [2.15, 2.45, 1.95, 2.6, 2.3, 2.05, 2.5, 2.2][i % 8];
     const tilt = new THREE.Euler(
       [0.28, -0.22, 0.12, -0.34, 0.2, -0.1, 0.36, -0.26][i % 8],
       0,
@@ -1717,9 +1687,9 @@ async function start() {
       cert, group, hit, frameMat, imgMat, haloMat,
       t: 0, state: 'orbit', anim: 0, hover: false, glow: 0, from: new THREE.Vector3(),
       orbitPosition(t, now, scale, out) {
-        const a = phase + t * speed;
-        // slightly elliptical: narrower left-right so the cards stay clear of the text column
-        out.set(Math.cos(a) * radius * scale * 0.8, 0, Math.sin(a) * radius * scale * 1.15).applyQuaternion(q);
+        // turns the same way as the figure (front moves right); dragging adds orbitSpin
+        const a = phase - t * speed - orbitSpin;
+        out.set(Math.cos(a) * radius * scale, 0, Math.sin(a) * radius * scale * 1.1).applyQuaternion(q);
         out.y += centerY + Math.sin(now * bobF + phase) * 0.06;
         return out;
       }

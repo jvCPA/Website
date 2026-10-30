@@ -1,7 +1,7 @@
 # Resume landing page (Google Apps Script + Google Sites)
 
-A one-page resume for Jorge Vincent Coral with a 3D hero: a 360° photo turntable on a glowing
-plinth, with eight featured certificates orbiting around it. It runs as a Google Apps Script web
+A one-page resume for Jorge Vincent Coral with a 3D hero: a centred 360° photo turntable with
+eight featured certificates orbiting around it. It runs as a Google Apps Script web
 app, so it can be embedded in Google Sites, and the contact form saves messages to a Google Sheet
 and emails you.
 
@@ -154,7 +154,7 @@ node resume/tools/build_preview.mjs
 ## How the page behaves
 
 - **3D hero:** the figure turns slowly and pauses on the front view each turn; drag or swipe to turn
-  it (with inertia). Hover a certificate to stop it and make it glow; click to bring it to the front
+  it (with inertia), and the orbiting certificates swing round in the same direction. Hover a certificate to stop it and make it glow; click to bring it to the front
   with its details. Keyboard users can Tab into the hero to get a list of the eight certificates.
 - **Still hero:** with "reduce motion" switched on, without WebGL, or if the 3D code cannot load,
   the hero shows the front photo and a grid of the featured certificates instead.

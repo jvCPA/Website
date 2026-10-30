@@ -1,6 +1,6 @@
 <script type="module">
 /*
- * Hero stage: a 360° photo turntable on a glowing plinth, with the featured certificates
+ * Hero stage: a 360° photo turntable, centred, with the featured certificates
  * orbiting in 3D. Falls back to the still hero (App.html) on any failure.
  */
 import * as THREE from 'three';
@@ -29,6 +29,7 @@ async function start() {
   const canvas = $('scene');
 
   let sheen = null; // shared glass texture for the certificate cards
+  let orbitSpin = 0; // extra orbit angle (radians) driven by dragging, shared by every certificate
   const COLORS = { stage: 0x0a1330, raised: 0x121d40, accent: 0x5266eb, periwinkle: 0x9cb4e8 };
   const mqMobile = window.matchMedia('(max-width: 900px)');
   const isMobile = () => mqMobile.matches;
@@ -88,27 +89,11 @@ async function start() {
   ]);
   const [atlasTex, ...certTex] = textures;
 
-  // ── Plinth, contact shadow, glow ─────────────────────────────────────────
-  const plinth = new THREE.Group();
-  scene.add(plinth);
-  const base = new THREE.Mesh(
-    new THREE.CylinderGeometry(1.25, 1.36, 0.16, 96),
-    new THREE.MeshStandardMaterial({ color: COLORS.raised, metalness: 0.7, roughness: 0.32 })
-  );
-  base.position.y = -0.08;
-  plinth.add(base);
-
-  const ringMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(COLORS.accent).multiplyScalar(3), toneMapped: false });
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.255, 0.012, 8, 160), ringMat);
-  ring.rotation.x = Math.PI / 2;
-  ring.position.y = 0.002;
-  plinth.add(ring);
-
-  plinth.add(flatDisc(3.4, radialTexture([[0, 'rgba(82,102,235,0.32)'], [0.4, 'rgba(82,102,235,0.10)'], [1, 'rgba(82,102,235,0)']]), THREE.AdditiveBlending, -0.159));
-  // soft contact shadow under the feet (part of the 3D stage, asked for in the brief) taste-skill-ignore
-  const shadow = flatDisc(1.9, radialTexture([[0, 'rgba(2,5,16,0.85)'], [0.45, 'rgba(2,5,16,0.45)'], [1, 'rgba(2,5,16,0)']]), THREE.NormalBlending, 0.004); // taste-skill-ignore
-  shadow.scale.set(1, 0.42, 1);
-  plinth.add(shadow);
+  // ── Soft contact shadow under the feet (no platform) ───────────────────── taste-skill-ignore
+  // taste-skill-ignore: grounding shadow for the figure
+  const shadow = flatDisc(1.9, radialTexture([[0, 'rgba(2,5,16,0.8)'], [0.45, 'rgba(2,5,16,0.4)'], [1, 'rgba(2,5,16,0)']]), THREE.NormalBlending, 0.004); // taste-skill-ignore
+  shadow.scale.set(1, 0.4, 1);
+  scene.add(shadow);
 
   // ── Figure: photo turntable (or a 3D avatar if assets/avatar.glb exists) ─
   const FIG_H = 3.3; // head-to-feet height in world units
@@ -164,17 +149,16 @@ async function start() {
     camera.aspect = W / H;
     const tan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
     if (isMobile()) {
-      orbitScale = 0.72;
-      const needHalfW = 2.15;
+      orbitScale = 0.64;
+      const needHalfW = 1.9;
       camera.position.set(0, 1.85, Math.max(9.5, needHalfW / (tan * camera.aspect)));
       camera.clearViewOffset();
     } else {
+      // figure centred; keep the whole orbit inside the frame
       orbitScale = 1;
-      // keep room for the orbit on the right of the figure (figure sits at 69% of the width)
-      const needRight = 2.7;
-      const dist = Math.max(9.6, needRight / (tan * camera.aspect * 0.62));
-      camera.position.set(0, 1.85, dist);
-      camera.setViewOffset(W, H, -0.19 * W, 0, W, H);
+      const needHalfW = 3.2;
+      camera.position.set(0, 1.85, Math.max(8.8, needHalfW / (tan * camera.aspect)));
+      camera.clearViewOffset();
     }
     baseCam.copy(camera.position);
     camera.lookAt(LOOK);
@@ -199,6 +183,8 @@ async function start() {
       }
       rot.vel += (target - rot.vel) * (1 - Math.exp(-dt * (rot.hold > 0 ? 5 : 1.6)));
       rot.angle += rot.vel * dt;
+      // the part of the spin that comes from the user's fling also carries the certificates
+      orbitSpin += THREE.MathUtils.degToRad(rot.vel - target) * dt * 0.8;
     }
     if (rot.angle >= 360) {
       rot.angle -= 360;
@@ -251,6 +237,7 @@ async function start() {
       const dt = Math.max(1, now - pointer.lastT) / 1000;
       pointer.moved += Math.abs(dx) + Math.abs(e.clientY - pointer.startY) * 0.2;
       rot.angle += dx * 0.4;
+      orbitSpin += THREE.MathUtils.degToRad(dx * 0.4) * 0.8; // certificates follow the drag
       rot.vel = THREE.MathUtils.clamp(rot.vel * 0.5 + (dx * 0.4 / dt) * 0.5, -500, 500);
       pointer.lastX = e.clientX;
       pointer.lastT = now;
@@ -385,7 +372,7 @@ async function start() {
 
     // where a pulled-out card sits: in front of the figure, toward the camera
     const mobile = isMobile();
-    frontPos.set(0, mobile ? 3.05 : 1.75, 0).lerp(camera.position, mobile ? 0.3 : 0.5);
+    frontPos.set(mobile ? 0 : 1.1, mobile ? 3.05 : 1.75, 0).lerp(camera.position, mobile ? 0.3 : 0.5);
 
     for (const card of cards) {
       const paused = card.hover || card.state !== 'orbit';
@@ -423,7 +410,6 @@ async function start() {
     }
 
     particles.material.uniforms.uTime.value = now;
-    ringMat.color.setRGB(0.32, 0.4, 0.92).multiplyScalar(1.7 + Math.sin(now * 1.4) * 0.25);
 
     if (props) props.render(renderer, camera, now, scene);
     if (composer) composer.render(dt);
@@ -575,7 +561,7 @@ async function start() {
     group.add(hit);
 
     // Each card gets its own tilted orbit, radius, speed and bob
-    const radius = [1.85, 2.1, 1.7, 2.25, 1.95, 1.75, 2.15, 1.9][i % 8];
+    const radius = [2.15, 2.45, 1.95, 2.6, 2.3, 2.05, 2.5, 2.2][i % 8];
     const tilt = new THREE.Euler(
       [0.28, -0.22, 0.12, -0.34, 0.2, -0.1, 0.36, -0.26][i % 8],
       0,
@@ -591,9 +577,9 @@ async function start() {
       cert, group, hit, frameMat, imgMat, haloMat,
       t: 0, state: 'orbit', anim: 0, hover: false, glow: 0, from: new THREE.Vector3(),
       orbitPosition(t, now, scale, out) {
-        const a = phase + t * speed;
-        // slightly elliptical: narrower left-right so the cards stay clear of the text column
-        out.set(Math.cos(a) * radius * scale * 0.8, 0, Math.sin(a) * radius * scale * 1.15).applyQuaternion(q);
+        // turns the same way as the figure (front moves right); dragging adds orbitSpin
+        const a = phase - t * speed - orbitSpin;
+        out.set(Math.cos(a) * radius * scale, 0, Math.sin(a) * radius * scale * 1.1).applyQuaternion(q);
         out.y += centerY + Math.sin(now * bobF + phase) * 0.06;
         return out;
       }

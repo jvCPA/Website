@@ -51,19 +51,10 @@
           <div class="still__figure" id="still-figure"></div>
           <ul class="still__grid" id="still-grid" aria-label="Featured certificates"></ul>
         </figure>
-        <p class="stage-hint" id="stage-hint" aria-hidden="true">Drag to turn · Click a certificate</p>
       </div>
 
       <div class="wrap hero__inner">
-        <div class="hero__copy" id="hero-copy">
-          <h1 class="hero__name" id="hero-title" data-bind="name"></h1>
-          <p class="hero__headline" data-bind="headline"></p>
-          <p class="hero__tagline" data-bind="tagline"></p>
-          <div class="hero__actions">
-            <a class="btn btn--primary" href="#work" data-scroll>View my work</a>
-            <a class="btn btn--glass" href="#contact" data-scroll>Contact me</a>
-          </div>
-        </div>
+        <h1 class="sr-only" id="hero-title" data-bind="name"></h1>
 
         <aside class="cert-panel" id="cert-panel" aria-live="polite" hidden>
           <h2 class="cert-panel__title" id="cp-title"></h2>
@@ -90,6 +81,7 @@
     <section class="stats" id="stats" aria-label="At a glance">
       <ul class="wrap stats__list" id="stats-list"></ul>
     </section>
+    <div class="stage-fade" aria-hidden="true"></div>
 
     <!-- ─── About ────────────────────────────────────────────── -->
     <section class="section about" id="about" aria-labelledby="about-title">
