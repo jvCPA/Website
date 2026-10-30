@@ -1599,7 +1599,7 @@ async function start() {
       const glow = card.hover && card.state === 'ring' ? 1 : 0;
       card.glow += (glow - card.glow) * (1 - Math.exp(-dt * 10));
       card.frameMat.emissiveIntensity = card.glow * 2.2;
-      card.haloMat.opacity = card.glow * 0.55;
+      card.haloMat.opacity = card.state === 'ring' ? card.glow * 0.55 : 0;
       const dim = openCard && openCard !== card ? 0.35 : PAPER;
       const c = card.imgMat.color.r + (dim - card.imgMat.color.r) * (1 - Math.exp(-dt * 6));
       card.imgMat.color.setScalar(c);
@@ -1616,7 +1616,7 @@ async function start() {
 
     // bloom is for the stars and hover glow; it fades out while a certificate is being read
     if (bloom) {
-      const target = openCard ? 0.08 : BLOOM;
+      const target = openCard ? 0 : BLOOM;
       bloom.strength += (target - bloom.strength) * (1 - Math.exp(-dt * 4));
     }
 
@@ -1625,7 +1625,8 @@ async function start() {
     if (shooting) shooting.update(dt, now);
 
     if (props) props.render(renderer, camera, now, scene);
-    if (composer) composer.render(dt);
+    // no bloom at all while a certificate is open or flying, so it always reads clean
+    if (composer && (!openCard || bloom.strength > 0.06)) composer.render(dt);
     else renderer.render(scene, camera);
   }
 
