@@ -110,10 +110,13 @@ async function start() {
 
   // ── Post-processing ───────────────────────────────────────────────────────
   let composer = null;
+  let bloom = null;
+  const BLOOM = 0.45;
   if (!lowPower) {
     composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
-    composer.addPass(new UnrealBloomPass(new THREE.Vector2(256, 256), 0.55, 0.5, 1.05));
+    bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), BLOOM, 0.45, 1.15);
+    composer.addPass(bloom);
     composer.addPass(new OutputPass());
   }
 
@@ -403,7 +406,7 @@ async function start() {
         if (card.anim >= 1) { card.state = 'ring'; openCard = null; }
       }
 
-      const glow = card.hover ? 1 : 0;
+      const glow = card.hover && card.state === 'ring' ? 1 : 0;
       card.glow += (glow - card.glow) * (1 - Math.exp(-dt * 10));
       card.frameMat.emissiveIntensity = card.glow * 2.2;
       card.haloMat.opacity = card.glow * 0.55;
@@ -419,6 +422,12 @@ async function start() {
       tmpV.y += hovered.height * 0.62;
       tmpV.project(camera);
       label.style.transform = `translate(${((tmpV.x + 1) / 2 * W).toFixed(1)}px, ${((1 - tmpV.y) / 2 * H).toFixed(1)}px) translate(-50%, -100%)`;
+    }
+
+    // bloom is for the stars and hover glow; it fades out while a certificate is being read
+    if (bloom) {
+      const target = openCard ? 0.08 : BLOOM;
+      bloom.strength += (target - bloom.strength) * (1 - Math.exp(-dt * 4));
     }
 
     sky.rotation.y = now * 0.006;
@@ -450,7 +459,8 @@ async function start() {
     const scale = 1;
 
     const group = new THREE.Group();
-    const frameMat = new THREE.MeshStandardMaterial({ color: 0x9aa6c8, metalness: 0.92, roughness: 0.24, emissive: COLORS.accent, emissiveIntensity: 0 });
+    // brushed metal: soft reflections so an enlarged card never blows out under bloom
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x8792b5, metalness: 0.75, roughness: 0.42, envMapIntensity: 0.55, emissive: COLORS.accent, emissiveIntensity: 0 });
     const frame = new THREE.Mesh(new RoundedBoxGeometry(width + 0.07, height + 0.07, 0.03, 3, 0.018), frameMat);
     group.add(frame);
 
@@ -466,7 +476,7 @@ async function start() {
     group.add(back);
 
     const glassMat = new THREE.MeshBasicMaterial({
-      map: sheenTexture(), transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false
+      map: sheenTexture(), transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false
     });
     const glass = new THREE.Mesh(new THREE.PlaneGeometry(width, height), glassMat);
     glass.position.z = 0.018;
