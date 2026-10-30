@@ -1,5 +1,8 @@
 # Background props: references and build notes
 
+> Not shown in the current hero: the bar-chart skyline, ledger floor and neural network now carry
+> the three pillars. The builders are still in `Scene.html` if you want them back.
+
 Three small stylised props float far behind the certificate ring in the hero, one per pillar. They are built in
 code (`buildCalculator`, `buildRobot`, `buildBarChart` in `apps-script/Scene.html`) following the
 img2threejs staged approach (blockout → structure → form → material → lighting → optimisation).

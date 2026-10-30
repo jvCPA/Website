@@ -1,7 +1,8 @@
 # Resume landing page (Google Apps Script + Google Sites)
 
 A one-page resume for Jorge Vincent Coral with a 3D hero: every certificate stands in a slowly
-spinning ring around his name, under a starry sky. It runs as a Google Apps Script web
+spinning ring around his name, on a spreadsheet floor with live bar charts and a glowing neural network
+around it (accounting, data analytics and AI). It runs as a Google Apps Script web
 app, so it can be embedded in Google Sites, and the contact form saves messages to a Google Sheet
 and emails you.
 
@@ -142,7 +143,7 @@ node resume/tools/build_preview.mjs
 - **Still hero:** with "reduce motion" switched on, without WebGL, or if the 3D code cannot load,
   the hero shows your name and a grid of the eight featured certificates instead.
 - **Performance:** rendering stops when the hero is scrolled away or the tab is hidden. Phones get
-  fewer stars, no bloom, no shooting stars and no background props.
+  a lighter network and fewer bar charts, and no bloom.
 
 ## Troubleshooting
 

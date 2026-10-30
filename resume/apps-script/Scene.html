@@ -1,7 +1,8 @@
 <script type="module">
 /*
- * Hero stage: every certificate stands in a slowly spinning 3D ring around the name, under a
- * starry sky. Cards flip to show their title as they pass the front. Drag to spin, hover to
+ * Hero stage: every certificate stands in a slowly spinning 3D ring around the name, set in a
+ * world made of the three pillars: a spreadsheet floor (accounting), a skyline of live bar charts
+ * (data analytics) and a neural network with travelling pulses (AI). Cards flip to show their title as they pass the front. Drag to spin, hover to
  * pause, click to bring one forward. Falls back to the still hero (App.html) on any failure.
  */
 import * as THREE from 'three';
@@ -88,10 +89,15 @@ async function start() {
   ]);
 
   // ── Sky ───────────────────────────────────────────────────────────────────
-  const sky = makeStarfield(lowPower ? 1400 : 3200, lowPower ? 900 : 2600);
-  scene.add(sky);
-  const shooting = lowPower ? null : makeShootingStars();
-  if (shooting) scene.add(shooting.group);
+  // ── The world: accounting floor, analytics skyline, AI network ───────────
+  const floor = makeLedgerFloor();
+  scene.add(floor);
+  const skyline = makeDataSkyline(lowPower ? 30 : 60);
+  scene.add(skyline.mesh);
+  const net = makeNeuralNet(lowPower ? 44 : 96, lowPower ? 50 : 140);
+  scene.add(net.group);
+  const figures = makeFloatingFigures(lowPower ? 28 : 70);
+  scene.add(figures.points);
 
   // ── The ring ──────────────────────────────────────────────────────────────
   const RADIUS = 3.8;
@@ -106,7 +112,9 @@ async function start() {
   ring.add(flatDisc(RADIUS * 2.6, radialTexture([[0, 'rgba(82,102,235,0.16)'], [0.55, 'rgba(82,102,235,0.05)'], [1, 'rgba(82,102,235,0)']], 512), THREE.AdditiveBlending, -0.62));
 
   // ── Soft background props (desktop only) ─────────────────────────────────
-  const props = lowPower ? null : makeBackdropProps();
+  // (the old blurred calculator/robot/chart props are kept below but no longer shown: the
+  // bar-chart skyline, ledger floor and network now carry the three pillars)
+  const props = null;
 
   // ── Post-processing ───────────────────────────────────────────────────────
   let composer = null;
@@ -144,7 +152,6 @@ async function start() {
     camera.lookAt(LOOK);
     camera.updateProjectionMatrix();
     if (props) props.resize(W, H);
-    sky.material.uniforms.uScale.value = renderer.getPixelRatio();
   }
   layout();
   new ResizeObserver(layout).observe(stage);
@@ -430,9 +437,11 @@ async function start() {
       bloom.strength += (target - bloom.strength) * (1 - Math.exp(-dt * 4));
     }
 
-    sky.rotation.y = now * 0.006;
-    sky.material.uniforms.uTime.value = now;
-    if (shooting) shooting.update(dt, now);
+    floor.material.uniforms.uTime.value = now;
+    skyline.update(now);
+    net.update(now, renderer.getPixelRatio());
+    net.group.rotation.y = Math.sin(now * 0.05) * 0.06;
+    figures.update(now, renderer.getPixelRatio());
 
     if (props) props.render(renderer, camera, now, scene);
     // no bloom at all while a certificate is open or flying, so it always reads clean
@@ -558,119 +567,268 @@ async function start() {
     return y;
   }
 
-  /** Twinkling stars on a far shell, plus a faint band of tiny stars like the Milky Way. */
-  function makeStarfield(count, bandCount) {
-    const total = count + bandCount;
-    const pos = new Float32Array(total * 3);
-    const size = new Float32Array(total);
-    const seed = new Float32Array(total);
-    const tint = new Float32Array(total);
-    const v = new THREE.Vector3();
-    const band = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.5, 0, 0.42));
-    for (let i = 0; i < total; i++) {
-      const r = 45 + Math.random() * 40;
-      if (i < count) {
-        // uniform on the whole sphere: the camera looks down, so the sky behind the ring matters most
-        const u = Math.random() * 2 - 1;
-        const a = Math.random() * Math.PI * 2;
-        const s = Math.sqrt(1 - u * u);
-        v.set(s * Math.cos(a), u, s * Math.sin(a));
-        const bright = Math.random() < 0.06;
-        size[i] = bright ? 3.2 + Math.random() * 2.2 : 1.2 + Math.random() * 1.6;
-        tint[i] = bright ? 2.2 : 0.95 + Math.random() * 0.6;
-      } else {
-        // a soft tilted band
-        const a = Math.random() * Math.PI * 2;
-        const spread = (Math.random() + Math.random() + Math.random() - 1.5) * 0.22;
-        v.set(Math.cos(a), spread, Math.sin(a)).applyQuaternion(band);
-        size[i] = 0.9 + Math.random() * 0.9;
-        tint[i] = 0.4 + Math.random() * 0.35;
+  /**
+   * Accounting: a spreadsheet floor. Rectangular ledger cells fade out from the ring, and now and
+   * then a cell lights up as if a figure had just been posted.
+   */
+  function makeLedgerFloor() {
+    const mat = new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      uniforms: { uTime: { value: 0 }, uLine: { value: new THREE.Color(COLORS.periwinkle) }, uCell: { value: new THREE.Color(COLORS.accent) } },
+      vertexShader: /* glsl */`
+        varying vec2 vXZ;
+        void main() {
+          vec4 w = modelMatrix * vec4(position, 1.0);
+          vXZ = w.xz;
+          gl_Position = projectionMatrix * viewMatrix * w;
+        }`,
+      fragmentShader: /* glsl */`
+        uniform float uTime; uniform vec3 uLine; uniform vec3 uCell;
+        varying vec2 vXZ;
+        float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float gridLine(vec2 p, vec2 size, float width) {
+          vec2 g = abs(fract(p / size - 0.5) - 0.5) * size;
+          vec2 fw = fwidth(p) * width;
+          vec2 l = 1.0 - smoothstep(vec2(0.0), fw, g);
+          return max(l.x, l.y);
+        }
+        void main() {
+          vec2 cellSize = vec2(1.1, 0.42);              // a spreadsheet cell: wide and short
+          float r = length(vXZ);
+          float fade = smoothstep(17.0, 5.0, r) * smoothstep(1.5, 4.5, r);
+          float minor = gridLine(vXZ, cellSize, 1.0);
+          float major = gridLine(vXZ, cellSize * vec2(5.0, 5.0), 1.6);
+          vec2 id = floor(vXZ / cellSize);
+          float h = hash(id);
+          float blink = fract(h * 7.0 + uTime * (0.05 + h * 0.08));
+          float lit = smoothstep(0.0, 0.03, blink) * (1.0 - smoothstep(0.03, 0.09, blink)) * step(0.82, h);
+          vec3 col = uLine * (minor * 0.10 + major * 0.16) + uCell * lit * 0.28;
+          float a = (minor * 0.10 + major * 0.16 + lit * 0.28) * fade;
+          gl_FragColor = vec4(col * fade, a);
+          #include <colorspace_fragment>
+        }`
+    });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(44, 44), mat);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.y = -0.66;
+    mesh.renderOrder = -3;
+    return mesh;
+  }
+
+  /** Data analytics: a curved skyline of live bar charts standing behind the ring. */
+  function makeDataSkyline(count) {
+    const geo = new THREE.BoxGeometry(0.38, 1, 0.38);
+    geo.translate(0, 0.5, 0);
+    const mat = new THREE.MeshStandardMaterial({ color: 0x18244f, metalness: 0.3, roughness: 0.55, emissive: 0x24306a, emissiveIntensity: 0.4, transparent: true, opacity: 0.85 });
+    const mesh = new THREE.InstancedMesh(geo, mat, count);
+    const bars = [];
+    const accent = new THREE.Color(COLORS.accent);
+    const base = new THREE.Color(0x3a4a8c);
+    const light = new THREE.Color(COLORS.periwinkle);
+    for (let i = 0; i < count; i++) {
+      // groups of 4–6 bars, like small charts, spread around the back of the scene
+      const group = Math.floor(i / 5);
+      const groups = Math.ceil(count / 5);
+      const a = Math.PI * (0.6 + (group / Math.max(1, groups - 1)) * 0.8) + (i % 5) * 0.035; // the far side of the ring
+      const radius = (isMobile() ? 5.4 : 7.4) + (group % 3) * 1.1;
+      bars.push({
+        x: Math.sin(a) * radius, z: Math.cos(a) * radius,
+        h: 0.3 + Math.random() * 0.9, amp: 0.1 + Math.random() * 0.3,
+        speed: 0.25 + Math.random() * 0.45, phase: Math.random() * 10
+      });
+      const tint = (i % 5 === 4) ? accent : (i % 3 === 0 ? light : base);
+      mesh.setColorAt(i, tint);
+    }
+    mesh.instanceColor.needsUpdate = true;
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const p = new THREE.Vector3();
+    const s = new THREE.Vector3();
+    function update(now) {
+      for (let i = 0; i < bars.length; i++) {
+        const b = bars[i];
+        const h = Math.max(0.2, b.h + Math.sin(now * b.speed + b.phase) * b.amp);
+        m.compose(p.set(b.x, -0.66, b.z), q, s.set(1, h, 1));
+        mesh.setMatrixAt(i, m);
       }
-      v.normalize().multiplyScalar(r);
-      pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z;
+      mesh.instanceMatrix.needsUpdate = true;
+    }
+    update(0);
+    return { mesh, update };
+  }
+
+  /** AI: a neural network hanging above the scene, with pulses running along its connections. */
+  function makeNeuralNet(nodeCount, pulseCount) {
+    const phone = isMobile();
+    const group = new THREE.Group();
+    const nodes = [];
+    for (let i = 0; i < nodeCount; i++) {
+      // the camera looks down at the ring, so the network fills the open space on either side of it
+      const side = i % 2 ? 1 : -1;
+      if (phone) {
+        // a phone frame is narrow: the network fills the middle of the ring and the space behind it
+        nodes.push(new THREE.Vector3((Math.random() - 0.5) * 6.5, -0.4 + Math.random() * 2.4, -9 + Math.random() * 10));
+        continue;
+      }
+      const z = -9 + Math.random() * 10;
+      const maxX = 0.42 * (13.5 - z) - 0.4; // keep every node inside the frame
+      nodes.push(new THREE.Vector3(
+        side * (4.5 + Math.random() * Math.max(0.5, maxX - 4.5)),
+        -0.4 + Math.random() * 3.6,
+        z
+      ));
+    }
+    // connect each node to its nearest neighbours
+    const edges = [];
+    const seen = new Set();
+    nodes.forEach((n, i) => {
+      nodes.map((o, j) => ({ j, d: n.distanceToSquared(o) }))
+        .filter((o) => o.j !== i).sort((a, b) => a.d - b.d).slice(0, 3)
+        .forEach(({ j, d }) => {
+          const k = i < j ? i + '-' + j : j + '-' + i;
+          if (!seen.has(k) && d < 22) { seen.add(k); edges.push([i, j]); }
+        });
+    });
+
+    const linePos = new Float32Array(edges.length * 6);
+    edges.forEach(([a, b], e) => {
+      linePos.set([nodes[a].x, nodes[a].y, nodes[a].z, nodes[b].x, nodes[b].y, nodes[b].z], e * 6);
+    });
+    const lineGeo = new THREE.BufferGeometry();
+    lineGeo.setAttribute('position', new THREE.BufferAttribute(linePos, 3));
+    const lines = new THREE.LineSegments(lineGeo, new THREE.LineBasicMaterial({
+      color: COLORS.periwinkle, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false, fog: false
+    }));
+    group.add(lines);
+
+    const dotMat = (bright) => new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      uniforms: { uTime: { value: 0 }, uScale: { value: 1 }, uColor: { value: new THREE.Color(COLORS.periwinkle).multiplyScalar(bright) } },
+      vertexShader: /* glsl */`
+        attribute vec3 aEnd; attribute float aSeed;
+        uniform float uTime; uniform float uScale;
+        varying float vA;
+        void main() {
+          // nodes have aEnd == position; pulses travel from position to aEnd
+          float t = fract(uTime * (0.18 + aSeed * 0.3) + aSeed * 13.0);
+          vec3 p = mix(position, aEnd, t);
+          vec4 mv = modelViewMatrix * vec4(p, 1.0);
+          gl_Position = projectionMatrix * mv;
+          float pulse = 0.6 + 0.4 * sin(uTime * (1.0 + aSeed) + aSeed * 30.0);
+          gl_PointSize = (3.0 + aSeed * 4.0) * uScale * 60.0 / -mv.z;
+          vA = pulse * sin(t * 3.14159);
+          if (distance(position, aEnd) < 0.001) vA = pulse;
+        }`,
+      fragmentShader: /* glsl */`
+        uniform vec3 uColor; varying float vA;
+        void main() {
+          float d = length(gl_PointCoord - 0.5);
+          float a = smoothstep(0.5, 0.0, d) * vA;
+          gl_FragColor = vec4(uColor * a, a);
+          #include <colorspace_fragment>
+        }`
+    });
+    function points(starts, ends, bright) {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(starts, 3));
+      geo.setAttribute('aEnd', new THREE.BufferAttribute(ends, 3));
+      const seeds = new Float32Array(starts.length / 3).map(() => Math.random());
+      geo.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1));
+      const pts = new THREE.Points(geo, dotMat(bright));
+      pts.frustumCulled = false;
+      return pts;
+    }
+    const nodePos = new Float32Array(nodes.length * 3);
+    nodes.forEach((n, i) => nodePos.set([n.x, n.y, n.z], i * 3));
+    const nodeDots = points(nodePos, nodePos.slice(), 1.4);
+    group.add(nodeDots);
+
+    const ps = new Float32Array(pulseCount * 3);
+    const pe = new Float32Array(pulseCount * 3);
+    for (let i = 0; i < pulseCount; i++) {
+      const [a, b] = edges[Math.floor(Math.random() * edges.length)];
+      const flip = Math.random() < 0.5;
+      const from = nodes[flip ? a : b], to = nodes[flip ? b : a];
+      ps.set([from.x, from.y, from.z], i * 3);
+      pe.set([to.x, to.y, to.z], i * 3);
+    }
+    const pulses = points(ps, pe, 2.4); // brighter than 1 so the bloom picks them up
+    group.add(pulses);
+
+    return {
+      group,
+      update(now, scale) {
+        for (const p of [nodeDots, pulses]) {
+          p.material.uniforms.uTime.value = now;
+          p.material.uniforms.uScale.value = scale;
+        }
+      }
+    };
+  }
+
+  /** Accounting: faint figures and symbols drifting upward. */
+  function makeFloatingFigures(count) {
+    const glyphs = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '₱', '$', '%', 'Σ'];
+    const c = document.createElement('canvas');
+    c.width = 64 * glyphs.length;
+    c.height = 64;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '500 44px Inter, system-ui, sans-serif';
+    glyphs.forEach((g, i) => ctx.fillText(g, i * 64 + 32, 34));
+    const tex = new THREE.CanvasTexture(c);
+
+    const pos = new Float32Array(count * 3);
+    const glyph = new Float32Array(count);
+    const seed = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = 5.5 + Math.random() * 9;
+      pos.set([Math.sin(a) * r, Math.random() * 5 - 0.6, Math.cos(a) * r * 0.9 - 2], i * 3);
+      glyph[i] = Math.floor(Math.random() * glyphs.length);
       seed[i] = Math.random();
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    geo.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
+    geo.setAttribute('aGlyph', new THREE.BufferAttribute(glyph, 1));
     geo.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
-    geo.setAttribute('aTint', new THREE.BufferAttribute(tint, 1));
     const mat = new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-      uniforms: { uTime: { value: 0 }, uScale: { value: 1 }, uWarm: { value: new THREE.Color(0xfff1dc) }, uCool: { value: new THREE.Color(COLORS.periwinkle) } },
+      uniforms: { uMap: { value: tex }, uTime: { value: 0 }, uScale: { value: 1 }, uCount: { value: glyphs.length }, uColor: { value: new THREE.Color(COLORS.periwinkle) } },
       vertexShader: /* glsl */`
-        attribute float aSize; attribute float aSeed; attribute float aTint;
+        attribute float aGlyph; attribute float aSeed;
         uniform float uTime; uniform float uScale;
-        varying float vA; varying float vSeed; varying float vTint;
+        varying float vGlyph; varying float vA;
         void main() {
-          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          vec3 p = position;
+          float rise = mod(p.y + 0.6 + uTime * (0.08 + aSeed * 0.1), 5.4);
+          p.y = rise - 0.6;
+          p.x += sin(uTime * 0.3 + aSeed * 20.0) * 0.2;
+          vec4 mv = modelViewMatrix * vec4(p, 1.0);
           gl_Position = projectionMatrix * mv;
-          float tw = 0.65 + 0.35 * sin(uTime * (0.6 + aSeed * 2.2) + aSeed * 40.0);
-          gl_PointSize = aSize * uScale * (0.85 + 0.3 * tw);
-          vA = tw; vSeed = aSeed; vTint = aTint;
+          gl_PointSize = (150.0 + aSeed * 120.0) * uScale / -mv.z;
+          vGlyph = aGlyph;
+          vA = (0.22 + aSeed * 0.26) * smoothstep(0.0, 0.8, rise) * smoothstep(5.4, 4.2, rise);
         }`,
       fragmentShader: /* glsl */`
-        uniform vec3 uWarm; uniform vec3 uCool;
-        varying float vA; varying float vSeed; varying float vTint;
+        uniform sampler2D uMap; uniform float uCount; uniform vec3 uColor;
+        varying float vGlyph; varying float vA;
         void main() {
-          float d = length(gl_PointCoord - 0.5);
-          float core = smoothstep(0.5, 0.0, d);
-          float a = core * vA;
-          vec3 col = mix(uCool, uWarm, step(0.6, vSeed)) * vTint;
-          gl_FragColor = vec4(col * a, a);
+          vec2 uv = vec2((vGlyph + gl_PointCoord.x) / uCount, 1.0 - gl_PointCoord.y);
+          float a = texture2D(uMap, uv).a * vA;
+          gl_FragColor = vec4(uColor * a, a);
           #include <colorspace_fragment>
         }`
     });
-    const points = new THREE.Points(geo, mat);
-    points.frustumCulled = false;
-    points.renderOrder = -2;
-    return points;
-  }
-
-  /** Now and then a thin streak crosses the sky. */
-  function makeShootingStars() {
-    const group = new THREE.Group();
-    const c = document.createElement('canvas');
-    c.width = 256; c.height = 8;
-    const ctx = c.getContext('2d');
-    const grad = ctx.createLinearGradient(0, 0, 256, 0);
-    grad.addColorStop(0, 'rgba(156,180,232,0)');
-    grad.addColorStop(0.85, 'rgba(220,230,255,0.75)');
-    grad.addColorStop(1, 'rgba(255,255,255,1)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 2, 256, 4);
-    const tex = new THREE.CanvasTexture(c);
-    const streaks = [0, 1].map(() => {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(5, 0.05), new THREE.MeshBasicMaterial({
-        map: tex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, toneMapped: false
-      }));
-      m.visible = false;
-      group.add(m);
-      return { m, life: 0, vel: new THREE.Vector3() };
-    });
-    let next = 4 + Math.random() * 5;
+    const pts = new THREE.Points(geo, mat);
+    pts.frustumCulled = false;
     return {
-      group,
-      update(dt, now) {
-        if (now > next) {
-          next = now + 6 + Math.random() * 8;
-          const s = streaks.find((x) => x.life <= 0);
-          if (s) {
-            const dir = Math.random() < 0.5 ? 1 : -1;
-            s.m.position.set(-dir * (8 + Math.random() * 10), 9 + Math.random() * 6, -30 - Math.random() * 10);
-            s.vel.set(dir * (22 + Math.random() * 10), -(7 + Math.random() * 5), 0);
-            s.m.rotation.z = Math.atan2(s.vel.y, s.vel.x);
-            s.life = 1;
-            s.m.visible = true;
-          }
-        }
-        for (const s of streaks) {
-          if (s.life <= 0) continue;
-          s.life -= dt / 1.1;
-          s.m.position.addScaledVector(s.vel, dt);
-          s.m.material.opacity = Math.sin(Math.max(0, s.life) * Math.PI) * 0.9;
-          if (s.life <= 0) s.m.visible = false;
-        }
+      points: pts,
+      update(now, scale) {
+        mat.uniforms.uTime.value = now;
+        mat.uniforms.uScale.value = scale;
       }
     };
   }
