@@ -1,0 +1,99 @@
+<script>
+/*
+ * ─────────────────────────────────────────────────────────────────────────────
+ *  RESUME CONFIG: every personal detail on the page lives here.
+ *  Search for "TEMP - replace" to find the placeholder text you still need to change.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+window.RESUME = {
+  // Where the images are served from. Pinned to a commit so the page never changes by surprise.
+  // After changing images: push, copy the new commit hash, paste it here (see README "Updating images").
+  ASSET_BASE: 'https://cdn.jsdelivr.net/gh/jvCPA/Website@__ASSET_COMMIT__/resume/assets/',
+
+  name: 'Jorge Vincent Coral',
+  headline: 'Accountant · AI Automation Specialist · Data Analyst',
+  tagline: 'I turn manual finance work into automated, AI-powered systems, so numbers are accurate, on time and easy to understand.', // TEMP - replace
+  location: 'Philippines · Available for remote work worldwide', // TEMP - replace
+  email: 'hello@example.com', // TEMP - replace
+  linkedin: 'https://www.linkedin.com/in/your-profile', // TEMP - replace
+
+  // Small strip under the hero. Delete the lines (or empty the list) to remove it.
+  stats: [
+    { value: '7+', label: 'years in accounting' }, // TEMP - replace
+    { value: '25+', label: 'certifications' }, // TEMP - replace
+    { value: '100+', label: 'hours saved monthly for clients' } // TEMP - replace
+  ],
+
+  about: "I'm an accountant who builds automation. I've spent years in tax, bookkeeping and financial reporting, and I saw how much time teams lose to copy-paste work, manual reconciliations and chasing documents. Now I combine accounting knowledge with AI and Google Workspace automation to build systems that do that work reliably. I also turn messy financial data into clear dashboards that help owners make decisions.", // TEMP - replace
+
+  pillars: [
+    { title: 'Accounting & Tax', text: 'Tax returns, BAS/GST, bookkeeping and month-end reporting in Xero and QuickBooks Online.' },
+    { title: 'AI Automation', text: 'Apps Script, n8n and LLM APIs wired into Gmail, Drive, Sheets and Calendar to remove manual steps.' },
+    { title: 'Data Analytics', text: 'Clean financial datasets and dashboards in Sheets, SQL, Python and Looker Studio.' }
+  ],
+
+  skills: [
+    { group: 'Accounting & Tax', items: ['Financial reporting', 'Bookkeeping', 'Bank reconciliation', 'BAS/GST', 'Individual & business tax returns', 'Xero', 'QuickBooks Online'] }, // TEMP - replace
+    { group: 'AI & Automation', items: ['Google Apps Script', 'n8n', 'Gemini API', 'Claude API', 'AI agents & chatbots', 'Gmail/Drive/Sheets/Calendar integrations'] }, // TEMP - replace
+    { group: 'Data Analytics', items: ['Google Sheets (advanced)', 'Excel', 'SQL', 'Python', 'Looker Studio', 'Data cleaning & dashboards'] } // TEMP - replace
+  ],
+
+  projects: [
+    {
+      title: 'Automated Financial Reporting',
+      summary: 'Month-end figures pulled from ledger exports, reconciled against the prior period, explained in plain English by AI and delivered as a PDF pack.',
+      flow: ['Ledger export', 'Reconcile vs prior period', 'AI commentary', 'PDF pack by email'],
+      tools: ['Apps Script', 'Google Sheets', 'Gemini API', 'Drive', 'Gmail']
+    },
+    {
+      title: 'AI Client Onboarding System',
+      summary: 'One form; AI checks for missing details, then builds the client folder, drafts the engagement letter, books the kickoff call and adds them to the CRM.',
+      flow: ['Intake form', 'AI completeness check', 'Folder + engagement letter', 'Kickoff call + CRM'],
+      tools: ['Google Forms', 'Gemini API', 'Drive', 'Docs', 'Calendar', 'CRM']
+    },
+    {
+      title: 'Invoice & Data Processing Automation',
+      summary: 'Supplier invoices read by AI, validated, written to a ledger-ready sheet; exceptions go to a short review queue.',
+      flow: ['Invoice arrives in Gmail', 'AI reads + validates', 'Ledger-ready sheet', 'Exceptions to review'],
+      tools: ['Gmail', 'Drive', 'Gemini API', 'Google Sheets']
+    }
+  ],
+
+  // Newest first.
+  experience: [
+    { role: 'AI Automation Specialist', company: 'Freelance', years: '2024 – Present', text: 'Builds AI-powered workflow automations for accounting and small-business teams using Apps Script, n8n and LLM APIs.' }, // TEMP - replace
+    { role: 'Accountant', company: '[Company Name]', years: '2021 – Present', text: 'Prepares tax returns, BAS and financial reports; streamlined month-end processes with automation.' }, // TEMP - replace
+    { role: 'Data Analyst', company: '[Company Name]', years: '2019 – 2021', text: 'Built reporting dashboards and cleaned financial datasets for management decisions.' }, // TEMP - replace
+    { role: 'Junior Accountant', company: '[Company Name]', years: '2017 – 2019', text: 'Bookkeeping, reconciliations and accounts payable/receivable.' } // TEMP - replace
+  ],
+
+  education: [
+    { degree: 'Bachelor of Science in Accountancy', school: '[University Name]', year: '[Year]' } // TEMP - replace
+  ],
+
+  // Certificates. Images live in assets/certs/<id>.webp (+ <id>-thumb.webp).
+  // category: 'Accounting & Tax' | 'AI & Automation' | 'Data Analytics'
+  // featured: true = one of the 8 that orbit the figure in the hero (keep it to 8).
+  certificates: [
+    { id: 'chartered-tax-professional', title: 'Chartered Tax Professional (CTP)', issuer: 'Association of Chartered Tax Professionals of the Philippines', year: '2024', category: 'Accounting & Tax', featured: true, verifyUrl: '' },
+    { id: 'niat-member', title: 'Member, National Institute of Accounting Technicians', issuer: 'National Institute of Accounting Technicians (NIAT)', year: '2024', category: 'Accounting & Tax', featured: true, verifyUrl: '' },
+    { id: 'certified-credit-professional', title: 'Certified Credit Professional (CeCP)', issuer: 'Certified Paralegals and Legal Researchers Training Center, Inc.', year: '2025', category: 'Accounting & Tax', featured: true, verifyUrl: '' },
+    { id: 'xero-advisor', title: 'Xero Advisor Certified', issuer: 'Xero', year: '2025', category: 'Accounting & Tax', featured: true, verifyUrl: '' },
+    { id: 'xero-payroll', title: 'Xero Payroll Certified', issuer: 'Xero', year: '2025', category: 'Accounting & Tax', featured: true, verifyUrl: '' },
+    { id: 'quickbooks-online-level-2', title: 'QuickBooks Online Certification Level 2', issuer: 'Intuit QuickBooks', year: '2025', category: 'Accounting & Tax', featured: true, verifyUrl: '' },
+    { id: 'quickbooks-online-payroll', title: 'QuickBooks Online Payroll Certification', issuer: 'Intuit QuickBooks', year: '2025', category: 'Accounting & Tax', featured: true, verifyUrl: '' },
+    { id: 'datacamp-associate-data-analyst', title: 'Associate Data Analyst', issuer: 'DataCamp', year: '2026', category: 'Data Analytics', featured: true, verifyUrl: '' },
+    { id: 'quickbooks-online-level-1', title: 'QuickBooks Online Certification Level 1', issuer: 'Intuit QuickBooks', year: '2025', category: 'Accounting & Tax', featured: false, verifyUrl: '' },
+    { id: 'philippine-taxation', title: 'Philippine Taxation for Individual & Business', issuer: 'Aze Vector Global Training Corporation', year: '2025', category: 'Accounting & Tax', featured: false, verifyUrl: '' },
+    { id: 'financial-statements-audit', title: 'The Basics of Financial Statements Audit', issuer: 'EV Alcala, Certified Public Accountant', year: '2024', category: 'Accounting & Tax', featured: false, verifyUrl: '' },
+    { id: 'basic-advanced-excel', title: 'Basic and Advanced Excel Training', issuer: 'EV Alcala, Certified Public Accountant', year: '2025', category: 'Data Analytics', featured: false, verifyUrl: '' },
+    { id: 'data-analytics-learning-challenge', title: 'Data Analytics Learning Challenge', issuer: 'DataSense Analytics', year: '2025', category: 'Data Analytics', featured: false, verifyUrl: '' },
+    { id: 'power-bi-crash-course', title: 'Power BI Crash Course: End-to-End Business Intelligence', issuer: 'DataSense Analytics', year: '2025', category: 'Data Analytics', featured: false, verifyUrl: '' },
+    { id: 'power-bi-desktop', title: 'Microsoft Power BI Desktop End-to-End Solution', issuer: 'DataSense Analytics', year: '2025', category: 'Data Analytics', featured: false, verifyUrl: '' },
+    { id: 'mos-excel-associate-training', title: 'Microsoft Office Specialist: Excel Associate Training', issuer: 'Data Analytics Philippines', year: '2025', category: 'Data Analytics', featured: false, verifyUrl: '' },
+    { id: 'python-fundamentals', title: 'Fundamentals of Python Programming', issuer: 'Data Analytics Philippines', year: '2025', category: 'Data Analytics', featured: false, verifyUrl: '' },
+    { id: 'emerson-national-data-challenge', title: 'Emerson x DAPH National Data Challenge', issuer: 'Emerson and Data Analytics Philippines', year: '2025', category: 'Data Analytics', featured: false, verifyUrl: '' },
+    { id: 'lean-six-sigma-white-belt', title: 'Certified Lean Six Sigma White Belt', issuer: 'AIGPE', year: '2025', category: 'Data Analytics', featured: false, verifyUrl: 'https://digitalcredentials.aigproexcellence.com/en/verify/65654815587955' }
+  ]
+};
+</script>

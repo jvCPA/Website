@@ -1,0 +1,343 @@
+<script>
+/* Page content, interactions and the contact form. The 3D hero lives in Scene.html. */
+(function () {
+  'use strict';
+  var C = window.RESUME;
+  var doc = document;
+  var root = doc.documentElement;
+  root.classList.add('js');
+
+  var BASE = window.RESUME_ASSET_BASE || C.ASSET_BASE;
+  function asset(path) { return BASE + path; }
+  function $(id) { return doc.getElementById(id); }
+  function el(tag, attrs, children) {
+    var node = doc.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      if (k === 'text') node.textContent = attrs[k];
+      else if (k === 'className') node.className = attrs[k];
+      else node.setAttribute(k, attrs[k]);
+    });
+    (children || []).forEach(function (c) { if (c) node.appendChild(c); });
+    return node;
+  }
+
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function hasWebGL() {
+    try {
+      var c = doc.createElement('canvas');
+      return !!(window.WebGLRenderingContext && (c.getContext('webgl2') || c.getContext('webgl')));
+    } catch (e) { return false; }
+  }
+
+  // ── Text bindings ──────────────────────────────────────────────────────────
+  doc.querySelectorAll('[data-bind]').forEach(function (node) {
+    node.textContent = C[node.getAttribute('data-bind')] || '';
+  });
+  $('year').textContent = new Date().getFullYear();
+
+  // ── Stats ──────────────────────────────────────────────────────────────────
+  if (C.stats && C.stats.length) {
+    C.stats.forEach(function (s) {
+      $('stats-list').appendChild(el('li', null, [el('strong', { text: s.value }), el('span', { text: s.label })]));
+    });
+  } else {
+    $('stats').hidden = true;
+  }
+
+  // ── Pillars ────────────────────────────────────────────────────────────────
+  C.pillars.forEach(function (p, i) {
+    $('pillars').appendChild(el('li', { 'data-reveal': '', style: '--d:' + (i * 90 + 120) + 'ms' }, [
+      el('h3', { text: p.title }), el('p', { text: p.text })
+    ]));
+  });
+
+  // ── Skills ─────────────────────────────────────────────────────────────────
+  C.skills.forEach(function (g, i) {
+    var chips = el('ul', { className: 'chips' });
+    g.items.forEach(function (s) { chips.appendChild(el('li', { text: s })); });
+    $('skills-grid').appendChild(el('div', { 'data-reveal': '', style: '--d:' + (i * 90) + 'ms' }, [
+      el('h3', { text: g.group }), chips
+    ]));
+  });
+
+  // ── Work ───────────────────────────────────────────────────────────────────
+  C.projects.forEach(function (p) {
+    var tags = el('ul', { className: 'tags', 'aria-label': 'Tools' });
+    p.tools.forEach(function (t) { tags.appendChild(el('li', { text: t })); });
+    var steps = el('ol');
+    p.flow.forEach(function (s) {
+      steps.appendChild(el('li', { className: /\bAI\b/.test(s) ? 'is-ai' : '', text: s }));
+    });
+    $('work-list').appendChild(el('article', { className: 'project', 'data-reveal': '' }, [
+      el('div', null, [el('h3', { text: p.title }), el('p', { className: 'project__summary', text: p.summary }), tags]),
+      el('div', { className: 'flow', 'aria-label': 'How it works' }, [steps])
+    ]));
+  });
+
+  // ── Experience + education ────────────────────────────────────────────────
+  C.experience.forEach(function (x, i) {
+    $('timeline').appendChild(el('li', { className: /present/i.test(x.years) ? 'is-current' : '', 'data-reveal': '', style: '--d:' + (i * 70) + 'ms' }, [
+      el('p', { className: 'timeline__years', text: x.years }),
+      el('div', null, [el('h3', { text: x.role }), el('p', { className: 'timeline__org', text: x.company }), el('p', { className: 'timeline__text', text: x.text })])
+    ]));
+  });
+  C.education.forEach(function (e) {
+    $('education').appendChild(el('li', { 'data-reveal': '' }, [
+      el('p', { className: 'timeline__years', text: e.year }),
+      el('div', null, [el('h4', { text: e.degree }), el('p', { className: 'timeline__org', text: e.school })])
+    ]));
+  });
+
+  // ── Certificates gallery ──────────────────────────────────────────────────
+  var certs = C.certificates;
+  var certById = {};
+  certs.forEach(function (c) { certById[c.id] = c; });
+  var CATS = ['All', 'Accounting & Tax', 'AI & Automation', 'Data Analytics'];
+  var activeCat = 'All';
+  var visible = certs.slice();
+
+  CATS.forEach(function (cat) {
+    var n = cat === 'All' ? certs.length : certs.filter(function (c) { return c.category === cat; }).length;
+    if (!n) return; // no empty tabs
+    var b = el('button', { type: 'button', role: 'tab', 'aria-selected': String(cat === 'All'), 'data-cat': cat, tabindex: cat === 'All' ? '0' : '-1' }, [
+      doc.createTextNode(cat), el('span', { className: 'count', text: String(n) })
+    ]);
+    $('cert-tabs').appendChild(b);
+  });
+
+  certs.forEach(function (c, i) {
+    var img = el('img', { src: asset('certs/' + c.id + '-thumb.webp'), alt: c.title + ' certificate', loading: 'lazy', decoding: 'async', width: '640', height: '453' });
+    var btn = el('button', { type: 'button', className: 'cert-card', 'data-id': c.id }, [
+      el('span', { className: 'cert-card__img' }, [img]),
+      el('span', null, [el('span', { className: 'cert-card__title', text: c.title }), el('span', { className: 'cert-card__sub', text: c.issuer + ' · ' + c.year })])
+    ]);
+    btn.addEventListener('click', function () { openLightbox(c.id); });
+    $('cert-grid').appendChild(el('li', { 'data-cat': c.category, 'data-reveal': '', style: '--d:' + ((i % 4) * 70) + 'ms' }, [btn]));
+  });
+
+  function selectTab(btn, focus) {
+    activeCat = btn.getAttribute('data-cat');
+    $('cert-tabs').querySelectorAll('[role=tab]').forEach(function (t) {
+      var on = t === btn;
+      t.setAttribute('aria-selected', String(on));
+      t.tabIndex = on ? 0 : -1;
+    });
+    if (focus) btn.focus();
+    visible = certs.filter(function (c) { return activeCat === 'All' || c.category === activeCat; });
+    $('cert-grid').querySelectorAll('li').forEach(function (li) {
+      var show = activeCat === 'All' || li.getAttribute('data-cat') === activeCat;
+      li.hidden = !show;
+      if (show) li.classList.add('is-in');
+    });
+  }
+  $('cert-tabs').addEventListener('click', function (e) {
+    var b = e.target.closest('[role=tab]');
+    if (b) selectTab(b);
+  });
+  $('cert-tabs').addEventListener('keydown', function (e) {
+    var tabs = Array.prototype.slice.call($('cert-tabs').querySelectorAll('[role=tab]'));
+    var i = tabs.indexOf(doc.activeElement);
+    if (i < 0) return;
+    if (e.key === 'ArrowRight') { e.preventDefault(); selectTab(tabs[(i + 1) % tabs.length], true); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); selectTab(tabs[(i - 1 + tabs.length) % tabs.length], true); }
+  });
+
+  // ── Lightbox ──────────────────────────────────────────────────────────────
+  var lb = $('lightbox');
+  var lbList = certs;
+  var lbIndex = 0;
+  var lbReturnFocus = null;
+  function showLightboxItem(i) {
+    lbIndex = (i + lbList.length) % lbList.length;
+    var c = lbList[lbIndex];
+    var img = $('lb-img');
+    if (!img) { img = el('img', { id: 'lb-img', decoding: 'async' }); $('lb-media').appendChild(img); }
+    img.src = asset('certs/' + c.id + '.webp');
+    img.alt = c.title + ' certificate issued by ' + c.issuer;
+    $('lb-title').textContent = c.title;
+    $('lb-issuer').textContent = c.issuer;
+    $('lb-sub').textContent = c.category + ' · ' + c.year;
+    var v = $('lb-verify');
+    v.hidden = !c.verifyUrl;
+    if (c.verifyUrl) v.href = c.verifyUrl;
+    $('lb-count').textContent = (lbIndex + 1) + ' of ' + lbList.length;
+  }
+  function openLightbox(id, list) {
+    lbList = list || (visible.some(function (c) { return c.id === id; }) ? visible : certs);
+    lbReturnFocus = doc.activeElement;
+    showLightboxItem(lbList.findIndex(function (c) { return c.id === id; }));
+    if (typeof lb.showModal === 'function') lb.showModal(); else lb.setAttribute('open', '');
+    $('lb-close').focus();
+  }
+  function closeLightbox() {
+    if (lb.open && typeof lb.close === 'function') lb.close(); else lb.removeAttribute('open');
+  }
+  lb.addEventListener('close', function () { if (lbReturnFocus) lbReturnFocus.focus(); });
+  $('lb-close').addEventListener('click', closeLightbox);
+  $('lb-prev').addEventListener('click', function () { showLightboxItem(lbIndex - 1); });
+  $('lb-next').addEventListener('click', function () { showLightboxItem(lbIndex + 1); });
+  lb.addEventListener('click', function (e) { if (e.target === lb) closeLightbox(); });
+  lb.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight') showLightboxItem(lbIndex + 1);
+    if (e.key === 'ArrowLeft') showLightboxItem(lbIndex - 1);
+  });
+
+  // ── Contact ───────────────────────────────────────────────────────────────
+  $('contact-email').textContent = C.email;
+  $('contact-email').href = 'mailto:' + C.email;
+  $('contact-linkedin').href = C.linkedin;
+
+  var form = $('contact-form');
+  var status = $('form-status');
+  var submit = $('f-submit');
+  var done = el('div', { className: 'form__done', tabindex: '-1' }, [
+    el('h3', { text: 'Message sent' }),
+    el('p', { text: 'Thanks for getting in touch. I will reply to the email you gave within one business day.' }),
+    el('p', null, [(function () {
+      var b = el('button', { type: 'button', className: 'btn btn--glass btn--sm', text: 'Send another message' });
+      b.addEventListener('click', function () { form.reset(); form.classList.remove('is-sent'); $('f-name').focus(); });
+      return b;
+    })()])
+  ]);
+  form.appendChild(done);
+
+  var rules = {
+    'f-name': function (v) { return v ? '' : 'Please enter your name.'; },
+    'f-email': function (v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? '' : 'Please enter a valid email, like name@company.com.'; },
+    'f-message': function (v) { return v.length >= 10 ? '' : 'Please write a short message (at least 10 characters).'; }
+  };
+  function validate(id) {
+    var input = $(id);
+    var msg = rules[id](input.value.trim());
+    var errId = id + '-error';
+    var err = $(errId);
+    if (msg) {
+      if (!err) { err = el('p', { id: errId, className: 'field__error' }); input.parentNode.appendChild(err); }
+      err.textContent = msg;
+      input.setAttribute('aria-invalid', 'true');
+      input.setAttribute('aria-describedby', errId);
+    } else {
+      if (err) err.remove();
+      input.removeAttribute('aria-invalid');
+      input.removeAttribute('aria-describedby');
+    }
+    return !msg;
+  }
+  Object.keys(rules).forEach(function (id) {
+    $(id).addEventListener('blur', function () { if ($(id).value) validate(id); });
+    $(id).addEventListener('input', function () { if ($(id).getAttribute('aria-invalid')) validate(id); });
+  });
+
+  function setBusy(busy) {
+    submit.disabled = busy;
+    submit.innerHTML = '';
+    if (busy) submit.appendChild(el('span', { className: 'spinner', 'aria-hidden': 'true' }));
+    submit.appendChild(el('span', { text: busy ? 'Sending' : 'Send message' }));
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var ok = Object.keys(rules).map(validate).every(Boolean);
+    if (!ok) {
+      status.className = 'form__status is-error';
+      status.textContent = 'Please fix the highlighted fields.';
+      form.querySelector('[aria-invalid=true]').focus();
+      return;
+    }
+    var payload = {
+      name: $('f-name').value.trim(),
+      email: $('f-email').value.trim(),
+      message: $('f-message').value.trim(),
+      website: $('f-website').value
+    };
+    setBusy(true);
+    status.className = 'form__status';
+    status.textContent = '';
+    var run = window.google && google.script && google.script.run;
+    if (!run) {
+      setBusy(false);
+      status.className = 'form__status is-error';
+      status.textContent = 'The form only works on the published page. Please email ' + C.email + ' instead.';
+      return;
+    }
+    run.withSuccessHandler(function () {
+      setBusy(false);
+      form.classList.add('is-sent');
+      status.textContent = '';
+      done.focus();
+    }).withFailureHandler(function (err) {
+      setBusy(false);
+      status.className = 'form__status is-error';
+      var msg = err && err.message ? err.message.replace(/^Exception:\s*/, '') : '';
+      status.textContent = (msg || 'Something went wrong while sending.') + ' You can also email ' + C.email + '.';
+    }).submitContact(payload);
+  });
+
+  // ── Navigation (in-page links scroll inside the iframe) ────────────────────
+  doc.querySelectorAll('[data-scroll]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      var target = doc.querySelector(a.getAttribute('href'));
+      if (!target) return;
+      e.preventDefault();
+      target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+      if (target.id !== 'top') {
+        var h = target.querySelector('h2');
+        if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); }
+      }
+    });
+  });
+  var nav = $('nav');
+  window.addEventListener('scroll', function () { nav.classList.toggle('is-scrolled', window.scrollY > 40); }, { passive: true });
+
+  // ── Reveals ───────────────────────────────────────────────────────────────
+  var revealables = doc.querySelectorAll('[data-reveal]');
+  if ('IntersectionObserver' in window && !reduceMotion) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) { en.target.classList.add('is-in'); io.unobserve(en.target); }
+      });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
+    revealables.forEach(function (n) { io.observe(n); });
+  } else {
+    revealables.forEach(function (n) { n.classList.add('is-in'); });
+  }
+
+  // ── Hero: 3D or still ─────────────────────────────────────────────────────
+  var featured = certs.filter(function (c) { return c.featured; }).slice(0, 8);
+  var staticMode = false;
+
+  function enterStatic(reason) {
+    if (staticMode) return;
+    staticMode = true;
+    root.classList.add('is-static');
+    root.classList.remove('is-ready');
+    var still = $('still');
+    $('still-figure').appendChild(el('img', { src: asset('turntable/front.webp'), alt: 'Photo of ' + C.name + ' in a navy suit', width: '192', height: '512' }));
+    featured.forEach(function (c) {
+      var b = el('button', { type: 'button', 'aria-label': 'Open certificate: ' + c.title }, [
+        el('img', { src: asset('certs/' + c.id + '-thumb.webp'), alt: '', loading: 'lazy' })
+      ]);
+      b.addEventListener('click', function () { openLightbox(c.id, featured); });
+      $('still-grid').appendChild(el('li', null, [b]));
+    });
+    still.hidden = false;
+    $('loader').setAttribute('aria-hidden', 'true');
+    if (window.console && reason) console.info('[resume] still hero: ' + reason);
+  }
+
+  window.ResumeApp = {
+    asset: asset,
+    featured: featured,
+    openLightbox: openLightbox,
+    enterStatic: enterStatic,
+    isStatic: function () { return staticMode; }
+  };
+
+  if (reduceMotion) enterStatic('reduced motion');
+  else if (!hasWebGL()) enterStatic('WebGL unavailable');
+  else {
+    // If the 3D module never starts (blocked CDN, unsupported browser), fall back to the still hero.
+    setTimeout(function () { if (!window.__sceneBooted) enterStatic('3D module did not load'); }, 8000);
+  }
+})();
+</script>

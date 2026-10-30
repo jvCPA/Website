@@ -1,0 +1,871 @@
+<script type="module">
+/*
+ * Hero stage: a 360° photo turntable on a glowing plinth, with the featured certificates
+ * orbiting in 3D. Falls back to the still hero (App.html) on any failure.
+ */
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+window.__sceneBooted = true;
+const App = window.ResumeApp;
+
+if (App && !App.isStatic()) {
+  start().catch((err) => {
+    console.warn('[resume] 3D hero failed, showing the still hero instead.', err);
+    App.enterStatic('3D error');
+  });
+}
+
+async function start() {
+  const $ = (id) => document.getElementById(id);
+  const root = document.documentElement;
+  const hero = document.querySelector('.hero');
+  const stage = $('stage');
+  const canvas = $('scene');
+
+  let sheen = null; // shared glass texture for the certificate cards
+  const COLORS = { stage: 0x0a1330, raised: 0x121d40, accent: 0x5266eb, periwinkle: 0x9cb4e8 };
+  const mqMobile = window.matchMedia('(max-width: 900px)');
+  const isMobile = () => mqMobile.matches;
+  const lowPower = isMobile() || (navigator.hardwareConcurrency || 8) <= 2;
+
+  // ── Renderer ───────────────────────────────────────────────────────────────
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: !lowPower, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, lowPower ? 1.5 : 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.NoToneMapping; // keep the photos true to colour
+  canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); App.enterStatic('WebGL context lost'); });
+
+  const scene = new THREE.Scene();
+  const stageColor = new THREE.Color(COLORS.stage);
+  scene.background = stageColor;
+  scene.fog = new THREE.FogExp2(COLORS.stage, 0.035);
+
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  scene.environmentIntensity = 0.45;
+
+  const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
+  const LOOK = new THREE.Vector3(0, 1.6, 0);
+
+  scene.add(new THREE.HemisphereLight(COLORS.periwinkle, COLORS.stage, 0.7));
+  const key = new THREE.DirectionalLight(0xfff3e4, 2.2);
+  key.position.set(-4, 6, 7);
+  scene.add(key);
+  const rim = new THREE.DirectionalLight(COLORS.accent, 4);
+  rim.position.set(4, 3, -6);
+  scene.add(rim);
+
+  // ── Loading ───────────────────────────────────────────────────────────────
+  const loaderBar = $('loader-bar');
+  const loaderText = $('loader-text');
+  const manager = new THREE.LoadingManager();
+  manager.onProgress = (_url, loaded, total) => {
+    const p = loaded / total;
+    loaderBar.style.strokeDashoffset = String(132 * (1 - p));
+    loaderText.textContent = 'Loading ' + Math.round(p * 100) + '%';
+  };
+  const texLoader = new THREE.TextureLoader(manager);
+  texLoader.setCrossOrigin('anonymous');
+  const loadTex = (url) => new Promise((resolve, reject) => texLoader.load(url, (t) => {
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+    resolve(t);
+  }, undefined, () => reject(new Error('Could not load ' + url))));
+
+  const featured = App.featured;
+  const avatarUrl = App.asset('avatar.glb');
+  const [meta, avatarExists, ...textures] = await Promise.all([
+    fetch(App.asset('turntable/frames.json')).then((r) => { if (!r.ok) throw new Error('frames.json'); return r.json(); }),
+    avatarAvailable(),
+    loadTex(App.asset('turntable/atlas.webp')),
+    ...featured.map((c) => loadTex(App.asset('certs/' + c.id + '-thumb.webp')))
+  ]);
+  const [atlasTex, ...certTex] = textures;
+
+  // ── Plinth, contact shadow, glow ─────────────────────────────────────────
+  const plinth = new THREE.Group();
+  scene.add(plinth);
+  const base = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.25, 1.36, 0.16, 96),
+    new THREE.MeshStandardMaterial({ color: COLORS.raised, metalness: 0.7, roughness: 0.32 })
+  );
+  base.position.y = -0.08;
+  plinth.add(base);
+
+  const ringMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(COLORS.accent).multiplyScalar(3), toneMapped: false });
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.255, 0.012, 8, 160), ringMat);
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = 0.002;
+  plinth.add(ring);
+
+  plinth.add(flatDisc(3.4, radialTexture([[0, 'rgba(82,102,235,0.32)'], [0.4, 'rgba(82,102,235,0.10)'], [1, 'rgba(82,102,235,0)']]), THREE.AdditiveBlending, -0.159));
+  const shadow = flatDisc(1.9, radialTexture([[0, 'rgba(2,5,16,0.85)'], [0.45, 'rgba(2,5,16,0.45)'], [1, 'rgba(2,5,16,0)']]), THREE.NormalBlending, 0.004);
+  shadow.scale.set(1, 0.42, 1);
+  plinth.add(shadow);
+
+  // ── Figure: photo turntable (or a 3D avatar if assets/avatar.glb exists) ─
+  const FIG_H = 3.3; // head-to-feet height in world units
+  const figure = new THREE.Group();
+  scene.add(figure);
+  let setFigureAngle;
+
+  if (avatarExists || (avatarExists === null && meta.avatar)) {
+    const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
+    const gltf = await new GLTFLoader().loadAsync(avatarUrl);
+    const model = gltf.scene;
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    model.scale.setScalar(FIG_H / size.y);
+    box.setFromObject(model);
+    model.position.y -= box.min.y;
+    figure.add(model);
+    setFigureAngle = (deg) => { figure.rotation.y = THREE.MathUtils.degToRad(deg); };
+  } else {
+    const turntable = makeTurntable(atlasTex, meta, FIG_H);
+    figure.add(turntable.mesh);
+    setFigureAngle = turntable.setAngle;
+  }
+
+  // ── Featured certificates in orbit ──────────────────────────────────────
+  const cards = featured.map((c, i) => makeCard(c, certTex[i], i, featured.length));
+  cards.forEach((card) => scene.add(card.group));
+  const hitTargets = cards.map((c) => c.hit);
+
+  // ── Particles ─────────────────────────────────────────────────────────────
+  const particles = makeParticles(lowPower ? 26 : 70);
+  scene.add(particles);
+
+  // ── Soft background props (desktop only) ─────────────────────────────────
+  const props = lowPower ? null : makeBackdropProps();
+
+  // ── Post-processing ───────────────────────────────────────────────────────
+  let composer = null;
+  if (!lowPower) {
+    composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    composer.addPass(new UnrealBloomPass(new THREE.Vector2(256, 256), 0.5, 0.45, 1.05));
+    composer.addPass(new OutputPass());
+  }
+
+  // ── Layout ────────────────────────────────────────────────────────────────
+  let W = 1, H = 1, orbitScale = 1;
+  function layout() {
+    W = Math.max(1, stage.clientWidth);
+    H = Math.max(1, stage.clientHeight);
+    renderer.setSize(W, H, false);
+    if (composer) composer.setSize(W, H);
+    camera.aspect = W / H;
+    const tan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    if (isMobile()) {
+      orbitScale = 0.72;
+      const needHalfW = 2.15;
+      camera.position.set(0, 1.85, Math.max(9.5, needHalfW / (tan * camera.aspect)));
+      camera.clearViewOffset();
+    } else {
+      orbitScale = 1;
+      // keep room for the orbit on the right of the figure (figure sits at 69% of the width)
+      const needRight = 2.7;
+      const dist = Math.max(9.6, needRight / (tan * camera.aspect * 0.62));
+      camera.position.set(0, 1.85, dist);
+      camera.setViewOffset(W, H, -0.19 * W, 0, W, H);
+    }
+    baseCam.copy(camera.position);
+    camera.lookAt(LOOK);
+    camera.updateProjectionMatrix();
+    if (props) props.resize(W, H, renderer.getPixelRatio());
+  }
+  const baseCam = new THREE.Vector3();
+  layout();
+  new ResizeObserver(layout).observe(stage);
+
+  // ── Rotation: auto spin with a pause on the front view, drag with inertia ─
+  const AUTO = 21;        // degrees per second
+  const FRONT_HOLD = 1.6; // seconds
+  const rot = { angle: 0, vel: 0, hold: 1.2, dragging: false, lastDrag: -10 };
+
+  function updateRotation(dt, now) {
+    if (!rot.dragging) {
+      let target = AUTO;
+      if (rot.hold > 0) { rot.hold -= dt; target = 0; }
+      else if (now - rot.lastDrag > 2.5 && rot.angle > 312) {
+        target = AUTO * Math.max(0.1, (360 - rot.angle) / 48); // ease into the front view
+      }
+      rot.vel += (target - rot.vel) * (1 - Math.exp(-dt * (rot.hold > 0 ? 5 : 1.6)));
+      rot.angle += rot.vel * dt;
+    }
+    if (rot.angle >= 360) {
+      rot.angle -= 360;
+      if (!rot.dragging && now - rot.lastDrag > 2.5 && rot.vel < AUTO * 0.6) { rot.angle = 0; rot.hold = FRONT_HOLD; }
+    }
+    if (rot.angle < 0) rot.angle += 360;
+    setFigureAngle(rot.angle);
+  }
+
+  // ── Pointer: drag to turn, hover/click certificates ──────────────────────
+  const raycaster = new THREE.Raycaster();
+  const ndc = new THREE.Vector2();
+  const pointer = { x: 0, y: 0, id: null, startX: 0, startY: 0, lastX: 0, lastT: 0, moved: 0, inside: false };
+  const parallax = new THREE.Vector2();
+  let hovered = null;
+  let openCard = null;
+
+  function pick(e) {
+    const r = canvas.getBoundingClientRect();
+    ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    raycaster.setFromCamera(ndc, camera);
+    const hit = raycaster.intersectObjects(hitTargets, false)[0];
+    return hit ? hit.object.userData.card : null;
+  }
+  function setHovered(card) {
+    if (hovered === card) return;
+    if (hovered) hovered.hover = false;
+    hovered = card;
+    if (card) card.hover = true;
+    canvas.style.cursor = card ? 'pointer' : (rot.dragging ? 'grabbing' : 'grab');
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    if (openCard) return;
+    pointer.id = e.pointerId;
+    pointer.startX = pointer.lastX = e.clientX;
+    pointer.startY = e.clientY;
+    pointer.lastT = performance.now();
+    pointer.moved = 0;
+    rot.dragging = true;
+    rot.vel = 0;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    const r = canvas.getBoundingClientRect();
+    parallax.set(((e.clientX - r.left) / r.width) * 2 - 1, ((e.clientY - r.top) / r.height) * 2 - 1);
+    if (rot.dragging && e.pointerId === pointer.id) {
+      const now = performance.now();
+      const dx = e.clientX - pointer.lastX;
+      const dt = Math.max(1, now - pointer.lastT) / 1000;
+      pointer.moved += Math.abs(dx) + Math.abs(e.clientY - pointer.startY) * 0.2;
+      rot.angle += dx * 0.4;
+      rot.vel = THREE.MathUtils.clamp(rot.vel * 0.5 + (dx * 0.4 / dt) * 0.5, -500, 500);
+      pointer.lastX = e.clientX;
+      pointer.lastT = now;
+      if (pointer.moved > 6) setHovered(null);
+      canvas.style.cursor = 'grabbing';
+    } else if (e.pointerType === 'mouse' && !openCard) {
+      setHovered(pick(e));
+    }
+  });
+  const endDrag = (e) => {
+    if (!rot.dragging || e.pointerId !== pointer.id) return;
+    rot.dragging = false;
+    rot.lastDrag = clock.elapsedTime;
+    rot.hold = 0;
+    if (performance.now() - pointer.lastT > 80) rot.vel = 0; // released after holding still
+    if (e.type === 'pointerup' && pointer.moved < 6) {
+      const card = pick(e);
+      if (card) open(card);
+    }
+    canvas.style.cursor = hovered ? 'pointer' : 'grab';
+  };
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+  canvas.addEventListener('pointerleave', () => { if (!rot.dragging) setHovered(null); parallax.set(0, 0); });
+  canvas.style.cursor = 'grab';
+
+  // Keyboard: a focusable list of the orbiting certificates
+  const keyList = $('cert-keys-list');
+  cards.forEach((card) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = card.cert.title;
+    b.setAttribute('aria-label', 'Open certificate: ' + card.cert.title);
+    b.addEventListener('focus', () => setHovered(card));
+    b.addEventListener('blur', () => setHovered(null));
+    b.addEventListener('click', () => open(card, b));
+    card.keyButton = b;
+    keyList.appendChild(wrapLi(b));
+  });
+
+  // Read-only hook used by the automated browser tests.
+  window.__resumeScene = {
+    get angle() { return rot.angle; },
+    get openId() { return openCard ? openCard.cert.id : null; },
+    cardScreen(i) {
+      const v = cards[i].group.position.clone().project(camera);
+      const r = canvas.getBoundingClientRect();
+      return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height, z: cards[i].group.position.z };
+    }
+  };
+
+  // ── Detail panel ──────────────────────────────────────────────────────────
+  const panel = $('cert-panel');
+  let returnFocus = null;
+  function open(card, from) {
+    if (openCard) return;
+    openCard = card;
+    returnFocus = from || null; // pointer users keep their place; keyboard users return to the key
+    setHovered(null);
+    card.state = 'toFront';
+    card.anim = 0;
+    card.from.copy(card.group.position);
+    const c = card.cert;
+    $('cp-title').textContent = c.title;
+    $('cp-issuer').textContent = c.issuer;
+    $('cp-year').textContent = c.year;
+    $('cp-category').textContent = c.category;
+    const verify = $('cp-verify');
+    verify.hidden = !c.verifyUrl;
+    if (c.verifyUrl) verify.href = c.verifyUrl;
+    panel.hidden = false;
+    hero.classList.add('is-panel-open');
+    $('cp-title').tabIndex = -1;
+    setTimeout(() => $('cp-title').focus({ preventScroll: true }), 50);
+  }
+  function close() {
+    if (!openCard || openCard.state === 'toOrbit') return;
+    openCard.state = 'toOrbit';
+    openCard.anim = 0;
+    openCard.from.copy(openCard.group.position);
+    panel.hidden = true;
+    hero.classList.remove('is-panel-open');
+    if (returnFocus) returnFocus.focus({ preventScroll: true });
+    else if (panel.contains(document.activeElement)) document.activeElement.blur();
+  }
+  $('cp-close').addEventListener('click', close);
+  $('cp-full').addEventListener('click', () => { if (openCard) App.openLightbox(openCard.cert.id, featured); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && openCard && !document.getElementById('lightbox').open) close();
+  });
+
+  // ── Loop (paused when the hero is off screen or the tab is hidden) ───────
+  const clock = new THREE.Clock();
+  let heroVisible = true;
+  let running = false;
+  new IntersectionObserver((entries) => {
+    heroVisible = entries[0].isIntersecting;
+    schedule();
+  }, { threshold: 0 }).observe(hero);
+  document.addEventListener('visibilitychange', schedule);
+
+  function schedule() {
+    const shouldRun = heroVisible && !document.hidden && !App.isStatic();
+    if (shouldRun && !running) {
+      running = true;
+      clock.getDelta();
+      requestAnimationFrame(frame);
+    } else if (!shouldRun) {
+      running = false;
+    }
+  }
+
+  const tmp = new THREE.Vector3();
+  const frontPos = new THREE.Vector3();
+  function frame() {
+    if (!running) return;
+    requestAnimationFrame(frame);
+    step();
+  }
+
+  function step() {
+    const dt = Math.min(clock.getDelta(), 1 / 20);
+    const now = clock.elapsedTime;
+
+    updateRotation(dt, now);
+
+    // gentle camera parallax
+    camera.position.x += (baseCam.x + parallax.x * 0.35 - camera.position.x) * (1 - Math.exp(-dt * 3));
+    camera.position.y += (baseCam.y - parallax.y * 0.18 - camera.position.y) * (1 - Math.exp(-dt * 3));
+    camera.lookAt(LOOK);
+    figure.children[0].userData.billboard?.(camera);
+
+    // where a pulled-out card sits: in front of the figure, toward the camera
+    const mobile = isMobile();
+    frontPos.set(0, mobile ? 3.05 : 1.75, 0).lerp(camera.position, mobile ? 0.3 : 0.5);
+
+    for (const card of cards) {
+      const paused = card.hover || card.state !== 'orbit';
+      if (!paused) card.t += dt * (openCard ? 0.35 : 1);
+      card.orbitPosition(card.t, now, orbitScale, tmp);
+
+      if (card.state === 'orbit') {
+        card.group.position.copy(tmp);
+      } else if (card.state === 'toFront' || card.state === 'front') {
+        card.anim = Math.min(1, card.anim + dt / 0.9);
+        const e = easeOutExpo(card.anim);
+        card.group.position.lerpVectors(card.from, frontPos, e);
+        if (card.anim >= 1) card.state = 'front';
+      } else if (card.state === 'toOrbit') {
+        card.anim = Math.min(1, card.anim + dt / 0.8);
+        const e = easeInOutCubic(card.anim);
+        card.group.position.lerpVectors(card.from, tmp, e);
+        if (card.anim >= 1) { card.state = 'orbit'; openCard = null; }
+      }
+
+      const spin = card.state === 'toFront' ? (1 - easeOutExpo(card.anim)) * -Math.PI * 0.9 : 0;
+      card.group.quaternion.copy(camera.quaternion);
+      if (spin) card.group.rotateY(spin);
+
+      const big = card.state === 'toFront' || card.state === 'front' ? (mobile ? 1.55 : 2.3) : card.state === 'toOrbit' ? 1 : (card.hover ? 1.12 : 1);
+      const targetScale = card.state === 'toOrbit' ? THREE.MathUtils.lerp(card.group.scale.x, 1, 0.12) : big;
+      card.group.scale.setScalar(card.group.scale.x + (targetScale - card.group.scale.x) * (1 - Math.exp(-dt * 8)));
+
+      const glow = card.hover ? 1 : 0;
+      card.glow += (glow - card.glow) * (1 - Math.exp(-dt * 10));
+      card.frameMat.emissiveIntensity = card.glow * 2.2;
+      card.haloMat.opacity = card.glow * 0.55;
+      const dim = openCard && openCard !== card ? 0.45 : 1;
+      card.imgMat.color.setScalar(card.imgMat.color.r + (dim - card.imgMat.color.r) * (1 - Math.exp(-dt * 6)));
+    }
+
+    particles.material.uniforms.uTime.value = now;
+    ringMat.color.setRGB(0.32, 0.4, 0.92).multiplyScalar(1.7 + Math.sin(now * 1.4) * 0.25);
+
+    if (props) props.render(renderer, camera, now, scene);
+    if (composer) composer.render(dt);
+    else renderer.render(scene, camera);
+  }
+
+  // first frame, then reveal
+  step();
+  root.classList.add('is-ready');
+  $('loader').setAttribute('aria-hidden', 'true');
+  window.__sceneReady = true;
+  schedule();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  //  Builders
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /** Billboard that shows the atlas frame for the current angle, with a short crossfade. */
+  function makeTurntable(tex, meta, figH) {
+    const { cols, rows, frameWidth, frameHeight, baseline, figureHeight, angles } = meta;
+    tex.generateMipmaps = true;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    const planeH = figH * frameHeight / figureHeight;
+    const planeW = planeH * frameWidth / frameHeight;
+    const geo = new THREE.PlaneGeometry(planeW, planeH);
+    geo.translate(0, planeH / 2 - planeH * (frameHeight - baseline) / frameHeight, 0);
+
+    const mat = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      premultipliedAlpha: true,
+      uniforms: {
+        uMap: { value: tex },
+        uA: { value: new THREE.Vector3() },  // col, row, flip
+        uB: { value: new THREE.Vector3() },
+        uMix: { value: 0 },
+        uGrid: { value: new THREE.Vector2(cols, rows) },
+        uTexel: { value: new THREE.Vector2(1 / (cols * frameWidth), 1 / (rows * frameHeight)) },
+        uRim: { value: new THREE.Color(COLORS.periwinkle) },
+        uGlow: { value: new THREE.Color(COLORS.accent) }
+      },
+      vertexShader: /* glsl */`
+        varying vec2 vUv;
+        void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+      fragmentShader: /* glsl */`
+        uniform sampler2D uMap; uniform vec3 uA; uniform vec3 uB; uniform float uMix;
+        uniform vec2 uGrid; uniform vec2 uTexel; uniform vec3 uRim; uniform vec3 uGlow;
+        varying vec2 vUv;
+        vec2 cellUv(vec3 f, vec2 uv) {
+          float x = f.z > 0.5 ? 1.0 - uv.x : uv.x;
+          return vec2((f.x + x) / uGrid.x, 1.0 - (f.y + 1.0 - uv.y) / uGrid.y);
+        }
+        vec4 sampleFrame(vec3 f, vec2 uv) {
+          vec4 c = texture2D(uMap, cellUv(f, clamp(uv, 0.0, 1.0)));
+          return vec4(c.rgb * c.a, c.a); // premultiply
+        }
+        float alphaAt(vec3 f, vec2 uv) {
+          if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return 0.0;
+          return texture2D(uMap, cellUv(f, uv)).a;
+        }
+        float halo(vec3 f, vec2 uv) {
+          vec2 d = uTexel * vec2(uGrid.x, uGrid.y) * 7.0;
+          float s = 0.0;
+          for (int i = 0; i < 8; i++) {
+            float a = float(i) * 0.785398;
+            s += alphaAt(f, uv + vec2(cos(a), sin(a)) * d);
+          }
+          return s / 8.0;
+        }
+        void main() {
+          vec4 a = sampleFrame(uA, vUv);
+          vec4 b = sampleFrame(uB, vUv);
+          vec4 col = mix(a, b, uMix);
+          // rim light from behind-right: silhouette edge facing the rim
+          vec2 off = vec2(uTexel.x * uGrid.x * 3.0, 0.0);
+          float edge = col.a * (1.0 - mix(alphaAt(uA, vUv + off), alphaAt(uB, vUv + off), uMix));
+          float outer = mix(halo(uA, vUv), halo(uB, vUv), uMix) * (1.0 - col.a);
+          col.rgb += uRim * edge * 0.4 + uGlow * outer * 0.14;
+          col.a += outer * 0.07;
+          if (col.a < 0.01) discard;
+          gl_FragColor = col;
+          #include <colorspace_fragment>
+        }`
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.renderOrder = 1;
+    mesh.userData.billboard = (cam) => {
+      tmpV.set(cam.position.x, mesh.position.y, cam.position.z);
+      mesh.lookAt(tmpV);
+    };
+    const tmpV = new THREE.Vector3();
+    const last = angles.length - 1;
+    const CROSSFADE = 0.24; // fraction of each step spent blending, either side of the midpoint
+
+    function cellOf(i, flip, out) {
+      // the exact front (0) and back (last) views are never mirrored
+      out.set(i % cols, Math.floor(i / cols), flip && i !== 0 && i !== last ? 1 : 0);
+    }
+    function setAngle(deg) {
+      const a = ((deg % 360) + 360) % 360;
+      const mirrored = a > 180;
+      const phi = mirrored ? 360 - a : a;
+      let i = 0;
+      while (i < last - 1 && phi > angles[i + 1]) i++;
+      const f = (phi - angles[i]) / (angles[i + 1] - angles[i]);
+      const t = THREE.MathUtils.smoothstep(f, 0.5 - CROSSFADE, 0.5 + CROSSFADE);
+      cellOf(i, mirrored, mat.uniforms.uA.value);
+      cellOf(i + 1, mirrored, mat.uniforms.uB.value);
+      mat.uniforms.uMix.value = t;
+    }
+    setAngle(0);
+    return { mesh, setAngle };
+  }
+
+  function makeCard(cert, tex, i, n) {
+    const img = tex.image;
+    const aspect = img.width / img.height;
+    const width = aspect >= 1 ? 0.92 : 0.7 * aspect;
+    const height = aspect >= 1 ? 0.92 / aspect : 0.7;
+
+    const group = new THREE.Group();
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x9aa6c8, metalness: 0.92, roughness: 0.24, emissive: COLORS.accent, emissiveIntensity: 0 });
+    const frame = new THREE.Mesh(new RoundedBoxGeometry(width + 0.07, height + 0.07, 0.03, 3, 0.018), frameMat);
+    group.add(frame);
+
+    const imgMat = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
+    const image = new THREE.Mesh(new THREE.PlaneGeometry(width, height), imgMat);
+    image.position.z = 0.0165;
+    group.add(image);
+
+    // thin glass sheen over the print
+    const glass = new THREE.Mesh(new THREE.PlaneGeometry(width, height), new THREE.MeshBasicMaterial({
+      map: sheenTexture(), transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false
+    }));
+    glass.position.z = 0.018;
+    group.add(glass);
+
+    // halo shown on hover (picked up by bloom)
+    const haloMat = new THREE.MeshBasicMaterial({
+      map: radialTexture([[0, 'rgba(120,140,255,1)'], [0.55, 'rgba(82,102,235,0.45)'], [1, 'rgba(82,102,235,0)']]),
+      transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false
+    });
+    const halo = new THREE.Mesh(new THREE.PlaneGeometry(width * 1.9, height * 1.9), haloMat);
+    halo.position.z = -0.03;
+    group.add(halo);
+
+    // invisible, slightly larger hit area
+    const hit = new THREE.Mesh(new THREE.PlaneGeometry(width + 0.16, height + 0.16), new THREE.MeshBasicMaterial({ visible: false }));
+    group.add(hit);
+
+    // Each card gets its own tilted orbit, radius, speed and bob
+    const radius = [1.85, 2.1, 1.7, 2.25, 1.95, 1.75, 2.15, 1.9][i % 8];
+    const tilt = new THREE.Euler(
+      [0.28, -0.22, 0.12, -0.34, 0.2, -0.1, 0.36, -0.26][i % 8],
+      0,
+      [-0.18, 0.24, -0.3, 0.1, 0.32, -0.22, 0.06, 0.2][i % 8]
+    );
+    const speed = [0.16, 0.12, 0.2, 0.1, 0.14, 0.18, 0.11, 0.15][i % 8];
+    const centerY = 1.7 + [0.35, -0.25, 0.05, 0.55, -0.4, 0.25, -0.1, 0.45][i % 8];
+    const phase = (i / n) * Math.PI * 2;
+    const bobF = 0.7 + (i % 4) * 0.13;
+    const q = new THREE.Quaternion().setFromEuler(tilt);
+
+    const card = {
+      cert, group, hit, frameMat, imgMat, haloMat,
+      t: 0, state: 'orbit', anim: 0, hover: false, glow: 0, from: new THREE.Vector3(),
+      orbitPosition(t, now, scale, out) {
+        const a = phase + t * speed;
+        // slightly elliptical: narrower left-right so the cards stay clear of the text column
+        out.set(Math.cos(a) * radius * scale * 0.8, 0, Math.sin(a) * radius * scale * 1.15).applyQuaternion(q);
+        out.y += centerY + Math.sin(now * bobF + phase) * 0.06;
+        return out;
+      }
+    };
+    hit.userData.card = card;
+    card.orbitPosition(0, 0, 1, group.position);
+    return card;
+  }
+
+  function makeParticles(count) {
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(count * 3);
+    const seed = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+      pos[i * 3] = (Math.random() - 0.5) * 12;
+      pos[i * 3 + 1] = Math.random() * 5.2 - 0.2;
+      pos[i * 3 + 2] = -6 + Math.random() * 8.5;
+      seed[i] = Math.random();
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
+    const mat = new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color(COLORS.periwinkle) }, uScale: { value: renderer.getPixelRatio() } },
+      vertexShader: /* glsl */`
+        attribute float aSeed; uniform float uTime; uniform float uScale; varying float vA;
+        void main() {
+          vec3 p = position;
+          p.y = mod(position.y + uTime * (0.04 + aSeed * 0.05), 5.4) - 0.2;
+          p.x += sin(uTime * 0.2 + aSeed * 30.0) * 0.25;
+          vec4 mv = modelViewMatrix * vec4(p, 1.0);
+          gl_Position = projectionMatrix * mv;
+          gl_PointSize = (14.0 + aSeed * 18.0) * uScale / -mv.z;
+          vA = 0.25 + 0.45 * aSeed;
+        }`,
+      fragmentShader: /* glsl */`
+        uniform vec3 uColor; varying float vA;
+        void main() {
+          float d = length(gl_PointCoord - 0.5);
+          float a = smoothstep(0.5, 0.0, d) * vA;
+          gl_FragColor = vec4(uColor * a, a);
+          #include <colorspace_fragment>
+        }`
+    });
+    const points = new THREE.Points(geo, mat);
+    points.frustumCulled = false;
+    points.renderOrder = 2;
+    return points;
+  }
+
+  /**
+   * Three small stylised props (calculator, robot, bar chart), one per pillar.
+   * They render into a low-resolution target that is blurred and used as the stage background,
+   * so they always sit behind the figure and read as out of focus.
+   */
+  function makeBackdropProps() {
+    const propScene = new THREE.Scene();
+    propScene.background = stageColor;
+    propScene.fog = new THREE.FogExp2(COLORS.stage, 0.028);
+    propScene.environment = scene.environment;
+    propScene.environmentIntensity = 0.5;
+    propScene.add(new THREE.HemisphereLight(COLORS.periwinkle, COLORS.stage, 0.9));
+    const pkey = new THREE.DirectionalLight(0xffffff, 2.6);
+    pkey.position.set(-3, 5, 6);
+    propScene.add(pkey);
+
+    const items = [
+      { obj: buildCalculator(), pos: [-1.9, 3.5, -6.5], scale: 0.8, spin: 0.18 },
+      { obj: buildRobot(), pos: [2.3, 3.9, -7.2], scale: 0.75, spin: -0.22 },
+      { obj: buildBarChart(), pos: [1.9, 1.0, -6.4], scale: 0.75, spin: 0.14 }
+    ];
+    items.forEach((it, i) => {
+      it.obj.position.set(...it.pos);
+      it.obj.scale.setScalar(it.scale);
+      it.obj.rotation.set(0.25, 0.6 * (i - 1), 0.1 * (1 - i));
+      propScene.add(it.obj);
+    });
+
+    const rtOpts = { type: THREE.HalfFloatType, colorSpace: THREE.LinearSRGBColorSpace, depthBuffer: true };
+    const rtA = new THREE.WebGLRenderTarget(4, 4, rtOpts);
+    const rtB = new THREE.WebGLRenderTarget(4, 4, { ...rtOpts, depthBuffer: false });
+    const blurMat = new THREE.ShaderMaterial({
+      depthTest: false, depthWrite: false,
+      uniforms: { uTex: { value: null }, uDir: { value: new THREE.Vector2() } },
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+      fragmentShader: /* glsl */`
+        uniform sampler2D uTex; uniform vec2 uDir; varying vec2 vUv;
+        void main() {
+          vec4 c = texture2D(uTex, vUv) * 0.227027;
+          c += texture2D(uTex, vUv + uDir * 1.3846) * 0.316216;
+          c += texture2D(uTex, vUv - uDir * 1.3846) * 0.316216;
+          c += texture2D(uTex, vUv + uDir * 3.2308) * 0.070270;
+          c += texture2D(uTex, vUv - uDir * 3.2308) * 0.070270;
+          gl_FragColor = c;
+        }`
+    });
+    const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), blurMat);
+    quad.frustumCulled = false;
+    const quadScene = new THREE.Scene();
+    quadScene.add(quad);
+    const quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+    return {
+      resize(w, h) {
+        const s = 0.25;
+        rtA.setSize(Math.max(2, Math.round(w * s)), Math.max(2, Math.round(h * s)));
+        rtB.setSize(rtA.width, rtA.height);
+      },
+      render(r, cam, now, mainScene) {
+        items.forEach((it, i) => {
+          it.obj.rotation.y += it.spin * 0.016;
+          it.obj.position.y = it.pos[1] + Math.sin(now * 0.5 + i * 2.1) * 0.12;
+        });
+        const prevTarget = r.getRenderTarget();
+        r.setRenderTarget(rtA);
+        r.render(propScene, cam);
+        blurMat.uniforms.uTex.value = rtA.texture;
+        blurMat.uniforms.uDir.value.set(1 / rtA.width, 0);
+        r.setRenderTarget(rtB);
+        r.render(quadScene, quadCam);
+        blurMat.uniforms.uTex.value = rtB.texture;
+        blurMat.uniforms.uDir.value.set(0, 1 / rtA.height);
+        r.setRenderTarget(rtA);
+        r.render(quadScene, quadCam);
+        r.setRenderTarget(prevTarget);
+        mainScene.background = rtA.texture;
+      }
+    };
+  }
+
+  function propMaterials() {
+    return {
+      body: new THREE.MeshStandardMaterial({ color: 0x1b2a5c, metalness: 0.35, roughness: 0.45 }),
+      light: new THREE.MeshStandardMaterial({ color: 0x8e9ccc, metalness: 0.1, roughness: 0.5 }),
+      dark: new THREE.MeshStandardMaterial({ color: 0x0c1533, metalness: 0.2, roughness: 0.3 }),
+      accent: new THREE.MeshStandardMaterial({ color: COLORS.accent, emissive: COLORS.accent, emissiveIntensity: 0.6, roughness: 0.35 }),
+      glow: new THREE.MeshBasicMaterial({ color: new THREE.Color(COLORS.periwinkle), toneMapped: false })
+    };
+  }
+
+  // Calculator: rounded slab, inset display, 4×5 keypad, accent equals key.
+  function buildCalculator() {
+    const m = propMaterials();
+    const g = new THREE.Group();
+    g.add(new THREE.Mesh(new RoundedBoxGeometry(1.0, 1.4, 0.16, 4, 0.08), m.body));
+    const screen = new THREE.Mesh(new RoundedBoxGeometry(0.8, 0.3, 0.04, 2, 0.02), m.dark);
+    screen.position.set(0, 0.47, 0.08);
+    g.add(screen);
+    const digits = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.1), m.glow);
+    digits.position.set(0.1, 0.47, 0.105);
+    g.add(digits);
+    const keyGeo = new RoundedBoxGeometry(0.16, 0.13, 0.06, 2, 0.025);
+    for (let r = 0; r < 5; r++) {
+      for (let c = 0; c < 4; c++) {
+        const isEq = r === 4 && c === 3;
+        const k = new THREE.Mesh(keyGeo, isEq ? m.accent : (c === 3 ? m.light : m.dark));
+        k.position.set(-0.3 + c * 0.2, 0.17 - r * 0.17, 0.09);
+        g.add(k);
+      }
+    }
+    return g;
+  }
+
+  // Robot: rounded head with a dark visor, two glowing eyes, ear pods and an antenna.
+  function buildRobot() {
+    const m = propMaterials();
+    const g = new THREE.Group();
+    g.add(new THREE.Mesh(new RoundedBoxGeometry(1.1, 0.85, 0.85, 5, 0.22), m.light));
+    const visor = new THREE.Mesh(new RoundedBoxGeometry(0.86, 0.42, 0.1, 3, 0.1), m.dark);
+    visor.position.set(0, 0.0, 0.4);
+    g.add(visor);
+    const eyeGeo = new THREE.CapsuleGeometry(0.055, 0.09, 4, 12);
+    [-0.2, 0.2].forEach((x) => {
+      const eye = new THREE.Mesh(eyeGeo, m.glow);
+      eye.position.set(x, 0.01, 0.46);
+      g.add(eye);
+    });
+    const earGeo = new THREE.CylinderGeometry(0.13, 0.13, 0.12, 24);
+    [-0.6, 0.6].forEach((x) => {
+      const ear = new THREE.Mesh(earGeo, m.accent);
+      ear.rotation.z = Math.PI / 2;
+      ear.position.set(x, 0, 0);
+      g.add(ear);
+    });
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.28, 12), m.body);
+    stem.position.y = 0.56;
+    g.add(stem);
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.08, 20, 16), m.glow);
+    tip.position.y = 0.74;
+    g.add(tip);
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.3, 0.18, 24), m.body);
+    neck.position.y = -0.5;
+    g.add(neck);
+    return g;
+  }
+
+  // Bar chart: a base tile with four rising bars, the last one in the accent colour.
+  function buildBarChart() {
+    const m = propMaterials();
+    const g = new THREE.Group();
+    const baseTile = new THREE.Mesh(new RoundedBoxGeometry(1.4, 0.08, 0.7, 2, 0.03), m.body);
+    g.add(baseTile);
+    [0.35, 0.6, 0.48, 0.95].forEach((h, i) => {
+      const bar = new THREE.Mesh(new RoundedBoxGeometry(0.22, h, 0.22, 2, 0.04), i === 3 ? m.accent : m.light);
+      bar.position.set(-0.45 + i * 0.3, 0.04 + h / 2, 0);
+      g.add(bar);
+    });
+    return g;
+  }
+
+  // ── Small helpers ────────────────────────────────────────────────────────
+  function flatDisc(size, map, blending, y) {
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshBasicMaterial({
+      map, transparent: true, depthWrite: false, blending, toneMapped: false
+    }));
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.y = y;
+    return mesh;
+  }
+  function radialTexture(stops) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const ctx = c.getContext('2d');
+    const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    stops.forEach(([o, col]) => g.addColorStop(o, col));
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 128, 128);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }
+  function sheenTexture() {
+    if (sheen) return sheen;
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const ctx = c.getContext('2d');
+    const g = ctx.createLinearGradient(0, 0, 128, 128);
+    g.addColorStop(0, 'rgba(255,255,255,0.0)');
+    g.addColorStop(0.42, 'rgba(255,255,255,0.0)');
+    g.addColorStop(0.5, 'rgba(255,255,255,0.22)');
+    g.addColorStop(0.58, 'rgba(255,255,255,0.0)');
+    g.addColorStop(1, 'rgba(255,255,255,0.06)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 128, 128);
+    sheen = new THREE.CanvasTexture(c);
+    sheen.colorSpace = THREE.SRGBColorSpace;
+    return sheen;
+  }
+  function wrapLi(node) {
+    const li = document.createElement('li');
+    li.appendChild(node);
+    return li;
+  }
+  /**
+   * Is there an assets/avatar.glb? On jsDelivr we ask its file-list API (no 404 noise in the console);
+   * for a local preview, frames.json can say {"avatar": true}.
+   */
+  async function avatarAvailable() {
+    const m = avatarUrl.match(/cdn\.jsdelivr\.net\/gh\/([^/]+)\/([^@/]+)@([^/]+)\/(.+)$/);
+    if (!m) return null;
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 3500);
+      const r = await fetch(`https://data.jsdelivr.com/v1/packages/gh/${m[1]}/${m[2]}@${m[3]}?structure=flat`, { signal: ctrl.signal });
+      clearTimeout(timer);
+      if (!r.ok) return false;
+      const data = await r.json();
+      return (data.files || []).some((f) => f.name === '/' + m[4]);
+    } catch (e) {
+      return false;
+    }
+  }
+  function easeOutExpo(x) { return x >= 1 ? 1 : 1 - Math.pow(2, -10 * x); }
+  function easeInOutCubic(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+}
+</script>

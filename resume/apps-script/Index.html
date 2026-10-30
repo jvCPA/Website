@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Jorge Vincent Coral: accountant, AI automation specialist and data analyst.">
+  <meta name="theme-color" content="#0a1330">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300..600&display=swap">
+  <?!= include('Styles'); ?>
+  <?!= include('Config'); ?>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="nav" id="nav">
+    <div class="wrap nav__inner">
+      <a class="nav__brand" href="#top" data-scroll data-bind="name"></a>
+      <nav aria-label="Sections">
+        <ul class="nav__links">
+          <li><a href="#work" data-scroll>Work</a></li>
+          <li><a href="#experience" data-scroll>Experience</a></li>
+          <li><a href="#certificates" data-scroll>Certificates</a></li>
+        </ul>
+      </nav>
+      <a class="btn btn--primary btn--sm" href="#contact" data-scroll>Contact me</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- ─── Hero ─────────────────────────────────────────────── -->
+    <section class="hero" id="top" aria-labelledby="hero-title">
+      <div class="hero__stage" id="stage">
+        <canvas id="scene" aria-hidden="true"></canvas>
+        <div class="loader" id="loader" role="status">
+          <svg viewBox="0 0 48 48" aria-hidden="true"><circle class="loader__track" cx="24" cy="24" r="21"/><circle class="loader__bar" id="loader-bar" cx="24" cy="24" r="21"/></svg>
+          <span id="loader-text">Loading</span>
+        </div>
+        <figure class="still" id="still" hidden>
+          <div class="still__figure" id="still-figure"></div>
+          <ul class="still__grid" id="still-grid" aria-label="Featured certificates"></ul>
+        </figure>
+        <p class="stage-hint" id="stage-hint" aria-hidden="true">Drag to turn · Click a certificate</p>
+      </div>
+
+      <div class="wrap hero__inner">
+        <div class="hero__copy" id="hero-copy">
+          <h1 class="hero__name" id="hero-title" data-bind="name"></h1>
+          <p class="hero__headline" data-bind="headline"></p>
+          <p class="hero__tagline" data-bind="tagline"></p>
+          <div class="hero__actions">
+            <a class="btn btn--primary" href="#work" data-scroll>View my work</a>
+            <a class="btn btn--glass" href="#contact" data-scroll>Contact me</a>
+          </div>
+        </div>
+
+        <aside class="cert-panel" id="cert-panel" aria-live="polite" hidden>
+          <h2 class="cert-panel__title" id="cp-title"></h2>
+          <p class="cert-panel__issuer" id="cp-issuer"></p>
+          <dl class="cert-panel__meta">
+            <div><dt>Year</dt><dd id="cp-year"></dd></div>
+            <div><dt>Category</dt><dd id="cp-category"></dd></div>
+          </dl>
+          <div class="cert-panel__actions">
+            <a class="btn btn--primary btn--sm" id="cp-verify" target="_blank" rel="noopener">Verify credential</a>
+            <button class="btn btn--glass btn--sm" type="button" id="cp-full">View full size</button>
+            <button class="btn btn--glass btn--sm" type="button" id="cp-close">Back to orbit</button>
+          </div>
+        </aside>
+      </div>
+
+      <div class="cert-keys" id="cert-keys">
+        <p class="cert-keys__label" id="cert-keys-label">Featured certificates</p>
+        <ul aria-labelledby="cert-keys-label" id="cert-keys-list"></ul>
+      </div>
+    </section>
+
+    <!-- ─── Stats strip ──────────────────────────────────────── -->
+    <section class="stats" id="stats" aria-label="At a glance">
+      <ul class="wrap stats__list" id="stats-list"></ul>
+    </section>
+
+    <!-- ─── About ────────────────────────────────────────────── -->
+    <section class="section about" id="about" aria-labelledby="about-title">
+      <div class="wrap about__grid">
+        <div class="about__text" data-reveal>
+          <h2 class="h2" id="about-title">About me</h2>
+          <p class="lead" data-bind="about"></p>
+        </div>
+        <ul class="pillars" id="pillars" aria-label="What I do"></ul>
+      </div>
+    </section>
+
+    <!-- ─── Skills ───────────────────────────────────────────── -->
+    <section class="section skills" id="skills" aria-labelledby="skills-title">
+      <div class="wrap">
+        <h2 class="h2" id="skills-title" data-reveal>Skills</h2>
+        <div class="skills__grid" id="skills-grid"></div>
+      </div>
+    </section>
+
+    <!-- ─── Work ─────────────────────────────────────────────── -->
+    <section class="section work" id="work" aria-labelledby="work-title">
+      <div class="wrap">
+        <h2 class="h2" id="work-title" data-reveal>Selected work</h2>
+        <div class="work__list" id="work-list"></div>
+      </div>
+    </section>
+
+    <!-- ─── Experience ───────────────────────────────────────── -->
+    <section class="section experience" id="experience" aria-labelledby="exp-title">
+      <div class="wrap experience__grid">
+        <h2 class="h2 experience__title" id="exp-title" data-reveal>Experience</h2>
+        <div>
+          <ol class="timeline" id="timeline"></ol>
+          <h3 class="h3 education__title" data-reveal>Education</h3>
+          <ul class="timeline timeline--edu" id="education"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Certificates ─────────────────────────────────────── -->
+    <section class="section certs" id="certificates" aria-labelledby="certs-title">
+      <div class="wrap">
+        <div class="certs__head" data-reveal>
+          <h2 class="h2" id="certs-title">Certificates</h2>
+          <div class="tabs" role="tablist" aria-label="Filter certificates" id="cert-tabs"></div>
+        </div>
+        <ul class="certs__grid" id="cert-grid" role="tabpanel" aria-labelledby="certs-title"></ul>
+      </div>
+    </section>
+
+    <!-- ─── Contact ──────────────────────────────────────────── -->
+    <section class="section contact" id="contact" aria-labelledby="contact-title">
+      <div class="wrap contact__grid">
+        <div class="contact__intro" data-reveal>
+          <h2 class="h2" id="contact-title">Contact me</h2>
+          <p class="lead">Tell me about the manual work slowing your team down. I usually reply within one business day.</p>
+          <ul class="contact__details">
+            <li><span>Email</span><a id="contact-email"></a></li>
+            <li><span>LinkedIn</span><a id="contact-linkedin" target="_blank" rel="noopener">View profile</a></li>
+            <li><span>Location</span><p data-bind="location"></p></li>
+          </ul>
+        </div>
+
+        <form class="form" id="contact-form" novalidate data-reveal>
+          <div class="field">
+            <label for="f-name">Name</label>
+            <input id="f-name" name="name" type="text" autocomplete="name" required maxlength="120">
+          </div>
+          <div class="field">
+            <label for="f-email">Email</label>
+            <input id="f-email" name="email" type="email" autocomplete="email" required maxlength="200">
+          </div>
+          <div class="field">
+            <label for="f-message">Message</label>
+            <textarea id="f-message" name="message" rows="6" required maxlength="5000"></textarea>
+          </div>
+          <div class="field field--trap" aria-hidden="true">
+            <label for="f-website">Website</label>
+            <input id="f-website" name="website" type="text" tabindex="-1" autocomplete="off">
+          </div>
+          <div class="form__foot">
+            <button class="btn btn--primary" type="submit" id="f-submit"><span>Send message</span></button>
+            <p class="form__status" id="form-status" role="status" aria-live="polite"></p>
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <p class="footer__name" data-bind="name"></p>
+      <div class="footer__row">
+        <p data-bind="headline"></p>
+        <p>&copy; <span id="year"></span> · <a href="#top" data-scroll>Back to top</a></p>
+      </div>
+    </div>
+  </footer>
+
+  <dialog class="lightbox" id="lightbox" aria-labelledby="lb-title">
+    <div class="lightbox__inner">
+      <div class="lightbox__media" id="lb-media"></div>
+      <div class="lightbox__meta">
+        <h2 class="lightbox__title" id="lb-title"></h2>
+        <p class="lightbox__issuer" id="lb-issuer"></p>
+        <p class="lightbox__sub" id="lb-sub"></p>
+        <a class="btn btn--primary btn--sm" id="lb-verify" target="_blank" rel="noopener">Verify credential</a>
+        <div class="lightbox__nav">
+          <button class="icon-btn" type="button" id="lb-prev" aria-label="Previous certificate"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+          <span id="lb-count"></span>
+          <button class="icon-btn" type="button" id="lb-next" aria-label="Next certificate"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+        </div>
+      </div>
+      <button class="icon-btn lightbox__close" type="button" id="lb-close" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+  </dialog>
+
+  <?!= include('App'); ?>
+  <?!= include('Scene'); ?>
+</body>
+</html>
