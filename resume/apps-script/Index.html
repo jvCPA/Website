@@ -122,11 +122,9 @@
     <section class="section experience" id="experience" aria-labelledby="exp-title">
       <div class="wrap experience__grid">
         <h2 class="h2 experience__title" id="exp-title" data-reveal>Experience</h2>
-        <div>
-          <ol class="timeline" id="timeline"></ol>
-          <h3 class="h3 education__title" data-reveal>Education</h3>
-          <ul class="timeline timeline--edu" id="education"></ul>
-        </div>
+        <ol class="timeline" id="timeline"></ol>
+        <h3 class="h2 education__title" data-reveal>Education</h3>
+        <ul class="timeline timeline--edu" id="education"></ul>
       </div>
     </section>
 
@@ -137,7 +135,7 @@
           <h2 class="h2" id="certs-title">Certificates</h2>
           <div class="tabs" role="tablist" aria-label="Filter certificates" id="cert-tabs"></div>
         </div>
-        <ul class="certs__grid" id="cert-grid" role="tabpanel" aria-labelledby="certs-title"></ul>
+        <ul class="certs__grid" id="cert-grid" role="tabpanel" aria-label="Certificates in the selected category"></ul>
       </div>
     </section>
 
@@ -171,6 +169,7 @@
             <label for="f-website">Website</label>
             <input id="f-website" name="website" type="text" tabindex="-1" autocomplete="off">
           </div>
+          <p class="form__note">All fields are required.</p>
           <div class="form__foot">
             <button class="btn btn--primary" type="submit" id="f-submit"><span>Send message</span></button>
             <p class="form__status" id="form-status" role="status" aria-live="polite"></p>

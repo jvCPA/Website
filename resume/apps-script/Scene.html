@@ -105,7 +105,8 @@ async function start() {
   plinth.add(ring);
 
   plinth.add(flatDisc(3.4, radialTexture([[0, 'rgba(82,102,235,0.32)'], [0.4, 'rgba(82,102,235,0.10)'], [1, 'rgba(82,102,235,0)']]), THREE.AdditiveBlending, -0.159));
-  const shadow = flatDisc(1.9, radialTexture([[0, 'rgba(2,5,16,0.85)'], [0.45, 'rgba(2,5,16,0.45)'], [1, 'rgba(2,5,16,0)']]), THREE.NormalBlending, 0.004);
+  // soft contact shadow under the feet (part of the 3D stage, asked for in the brief) taste-skill-ignore
+  const shadow = flatDisc(1.9, radialTexture([[0, 'rgba(2,5,16,0.85)'], [0.45, 'rgba(2,5,16,0.45)'], [1, 'rgba(2,5,16,0)']]), THREE.NormalBlending, 0.004); // taste-skill-ignore
   shadow.scale.set(1, 0.42, 1);
   plinth.add(shadow);
 
