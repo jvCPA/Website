@@ -115,6 +115,30 @@
     $('cert-grid').appendChild(el('li', { 'data-cat': c.category, 'data-reveal': '', style: '--d:' + ((i % 4) * 70) + 'ms' }, [btn]));
   });
 
+  // On phones the gallery starts with six certificates and a "Show all" button.
+  var mqSmall = window.matchMedia('(max-width: 640px)');
+  var collapsed = true;
+  var LIMIT = 6;
+  function applyCollapse() {
+    var shown = 0;
+    $('cert-grid').querySelectorAll('li').forEach(function (li) {
+      li.classList.remove('is-extra');
+      if (li.hidden) return;
+      shown++;
+      if (collapsed && mqSmall.matches && shown > LIMIT) li.classList.add('is-extra');
+    });
+    var more = $('cert-more');
+    more.hidden = !(collapsed && mqSmall.matches && shown > LIMIT);
+    more.textContent = 'Show all ' + shown + ' certificates';
+  }
+  $('cert-more').addEventListener('click', function () {
+    collapsed = false;
+    var first = $('cert-grid').querySelector('li.is-extra button');
+    applyCollapse();
+    if (first) first.focus();
+  });
+  if (mqSmall.addEventListener) mqSmall.addEventListener('change', applyCollapse);
+
   function selectTab(btn, focus) {
     activeCat = btn.getAttribute('data-cat');
     $('cert-tabs').querySelectorAll('[role=tab]').forEach(function (t) {
@@ -129,6 +153,7 @@
       li.hidden = !show;
       if (show) li.classList.add('is-in');
     });
+    applyCollapse();
   }
   $('cert-tabs').addEventListener('click', function (e) {
     var b = e.target.closest('[role=tab]');
@@ -141,6 +166,8 @@
     if (e.key === 'ArrowRight') { e.preventDefault(); selectTab(tabs[(i + 1) % tabs.length], true); }
     if (e.key === 'ArrowLeft') { e.preventDefault(); selectTab(tabs[(i - 1 + tabs.length) % tabs.length], true); }
   });
+
+  applyCollapse();
 
   // ── Lightbox ──────────────────────────────────────────────────────────────
   var lb = $('lightbox');
@@ -287,6 +314,14 @@
     });
   });
   var nav = $('nav');
+  var toggle = $('nav-toggle');
+  function setMenu(open) {
+    nav.classList.toggle('is-open', open);
+    toggle.setAttribute('aria-expanded', String(open));
+  }
+  toggle.addEventListener('click', function () { setMenu(!nav.classList.contains('is-open')); });
+  nav.querySelectorAll('.nav__links a').forEach(function (a) { a.addEventListener('click', function () { setMenu(false); }); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && nav.classList.contains('is-open')) { setMenu(false); toggle.focus(); } });
   window.addEventListener('scroll', function () { nav.classList.toggle('is-scrolled', window.scrollY > 40); }, { passive: true });
 
   // ── Reveals ───────────────────────────────────────────────────────────────
@@ -311,16 +346,14 @@
     staticMode = true;
     root.classList.add('is-static');
     root.classList.remove('is-ready');
-    var still = $('still');
-    $('still-figure').appendChild(el('img', { src: asset('turntable/front.webp'), alt: 'Photo of ' + C.name + ' in a navy suit', width: '192', height: '512' }));
     featured.forEach(function (c) {
       var b = el('button', { type: 'button', 'aria-label': 'Open certificate: ' + c.title }, [
         el('img', { src: asset('certs/' + c.id + '-thumb.webp'), alt: '', loading: 'lazy' })
       ]);
       b.addEventListener('click', function () { openLightbox(c.id, featured); });
-      $('still-grid').appendChild(el('li', null, [b]));
+      $('still').appendChild(el('li', null, [b]));
     });
-    still.hidden = false;
+    $('still').hidden = false;
     $('loader').setAttribute('aria-hidden', 'true');
     if (window.console && reason) console.info('[resume] still hero: ' + reason);
   }
@@ -328,6 +361,7 @@
   window.ResumeApp = {
     asset: asset,
     featured: featured,
+    certificates: certs,
     openLightbox: openLightbox,
     enterStatic: enterStatic,
     isStatic: function () { return staticMode; }

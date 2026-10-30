@@ -28,13 +28,16 @@
     <div class="wrap nav__inner">
       <a class="nav__brand" href="#top" data-scroll data-bind="name"></a>
       <nav aria-label="Sections">
-        <ul class="nav__links">
+        <ul class="nav__links" id="nav-links">
           <li><a href="#work" data-scroll>Work</a></li>
           <li><a href="#experience" data-scroll>Experience</a></li>
           <li><a href="#certificates" data-scroll>Certificates</a></li>
         </ul>
       </nav>
       <a class="btn btn--primary btn--sm" href="#contact" data-scroll>Contact me</a>
+      <button class="nav__toggle icon-btn" type="button" id="nav-toggle" aria-expanded="false" aria-controls="nav-links" aria-label="Menu">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16M4 16h16"/></svg>
+      </button>
     </div>
   </header>
 
@@ -47,14 +50,20 @@
           <svg viewBox="0 0 48 48" aria-hidden="true"><circle class="loader__track" cx="24" cy="24" r="21"/><circle class="loader__bar" id="loader-bar" cx="24" cy="24" r="21"/></svg>
           <span id="loader-text">Loading</span>
         </div>
-        <figure class="still" id="still" hidden>
-          <div class="still__figure" id="still-figure"></div>
-          <ul class="still__grid" id="still-grid" aria-label="Featured certificates"></ul>
-        </figure>
+        <div class="ring-label" id="ring-label" aria-hidden="true" hidden></div>
+        <ul class="still" id="still" aria-label="Featured certificates" hidden></ul>
       </div>
 
       <div class="wrap hero__inner">
-        <h1 class="sr-only" id="hero-title" data-bind="name"></h1>
+        <div class="hero__copy" id="hero-copy">
+          <h1 class="hero__name" id="hero-title" data-bind="name"></h1>
+          <p class="hero__headline" data-bind="headline"></p>
+          <p class="hero__tagline" data-bind="tagline"></p>
+          <div class="hero__actions">
+            <a class="btn btn--primary" href="#contact" data-scroll>Contact me</a>
+            <a class="btn btn--glass" href="#work" data-scroll>View my work</a>
+          </div>
+        </div>
 
         <aside class="cert-panel" id="cert-panel" aria-live="polite" hidden>
           <h2 class="cert-panel__title" id="cp-title"></h2>
@@ -72,7 +81,7 @@
       </div>
 
       <div class="cert-keys" id="cert-keys">
-        <p class="cert-keys__label" id="cert-keys-label">Featured certificates</p>
+        <p class="cert-keys__label" id="cert-keys-label">Certificates in the ring</p>
         <ul aria-labelledby="cert-keys-label" id="cert-keys-list"></ul>
       </div>
     </section>
@@ -128,6 +137,7 @@
           <div class="tabs" role="tablist" aria-label="Filter certificates" id="cert-tabs"></div>
         </div>
         <ul class="certs__grid" id="cert-grid" role="tabpanel" aria-label="Certificates in the selected category"></ul>
+        <button class="btn btn--tint certs__more" type="button" id="cert-more" hidden></button>
       </div>
     </section>
 

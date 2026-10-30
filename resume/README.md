@@ -1,7 +1,7 @@
 # Resume landing page (Google Apps Script + Google Sites)
 
-A one-page resume for Jorge Vincent Coral with a 3D hero: a centred 360° photo turntable with
-eight featured certificates orbiting around it. It runs as a Google Apps Script web
+A one-page resume for Jorge Vincent Coral with a 3D hero: every certificate stands in a slowly
+spinning ring around his name, under a starry sky. It runs as a Google Apps Script web
 app, so it can be embedded in Google Sites, and the contact form saves messages to a Google Sheet
 and emails you.
 
@@ -11,7 +11,7 @@ and emails you.
 |---|---|
 | `apps-script/` | The files you copy into Apps Script: `Code.gs`, `Index.html`, `Styles.html`, `Scene.html`, `App.html`, `Config.html`, `appsscript.json` |
 | `apps-script/Config.html` | **All your personal details** (name, text, skills, jobs, certificates). Search for `TEMP - replace` |
-| `assets/turntable/` | `turntable.png` (your original sheet), `atlas.webp` (all 19 cleaned frames), `front.webp`, `frames.json` (angles) |
+| `assets/turntable/` | Your 360° turntable sheet and the cleaned frames. Not used by the current hero (kept in case you want the figure back) |
 | `assets/certs/` | Cleaned certificate images (`<id>.webp`) and thumbnails (`<id>-thumb.webp`) |
 | `assets/certs/originals/` | Your original uploads. The page never uses these |
 | `preview/index.html` | The same page running without Apps Script, for testing |
@@ -112,26 +112,8 @@ after changing images you have to point the page at the new commit:
 3. Add a matching entry to `certificates` in `Config.html` (`id` = the name used in the script).
 4. Follow "Updating images" above.
 
-To change which eight orbit the figure, move `featured: true` between certificates (keep it to eight).
-
-### Using a real 3D model instead of the photo turntable
-
-Put a GLB file at `resume/assets/avatar.glb`, push, and update the commit ID as above. The page
-checks for it on load and uses it in place of the photos.
-
-### Rebuilding the turntable
-
-```bash
-pip install "rembg[cpu]" pillow numpy
-```
-
-```bash
-python3 resume/tools/process_turntable.py
-```
-
-The viewing angle of each frame is set in `ANGLES` inside that script.
-
----
+The ring shows every certificate in the order of the list. `featured: true` picks the eight shown in
+the still version of the hero (reduced motion or no 3D); keep it to eight.
 
 ## Testing without Apps Script
 
@@ -153,13 +135,14 @@ node resume/tools/build_preview.mjs
 
 ## How the page behaves
 
-- **3D hero:** the figure turns slowly and pauses on the front view each turn; drag or swipe to turn
-  it (with inertia), and the orbiting certificates swing round in the same direction. Hover a certificate to stop it and make it glow; click to bring it to the front
-  with its details. Keyboard users can Tab into the hero to get a list of the eight certificates.
+- **3D hero:** the ring of certificates turns slowly; drag or swipe to spin it (with inertia).
+  Certificates flip to show their title as they pass the front. Hover one to pause the ring and see
+  its name; click to bring it forward with its details. Keyboard users can Tab into the hero to get a
+  list of every certificate.
 - **Still hero:** with "reduce motion" switched on, without WebGL, or if the 3D code cannot load,
-  the hero shows the front photo and a grid of the featured certificates instead.
+  the hero shows your name and a grid of the eight featured certificates instead.
 - **Performance:** rendering stops when the hero is scrolled away or the tab is hidden. Phones get
-  fewer particles, no bloom and no background props.
+  fewer stars, no bloom, no shooting stars and no background props.
 
 ## Troubleshooting
 

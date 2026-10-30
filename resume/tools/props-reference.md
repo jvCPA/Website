@@ -1,10 +1,10 @@
 # Background props: references and build notes
 
-Three small stylised props float behind the figure in the hero, one per pillar. They are built in
+Three small stylised props float far behind the certificate ring in the hero, one per pillar. They are built in
 code (`buildCalculator`, `buildRobot`, `buildBarChart` in `apps-script/Scene.html`) following the
 img2threejs staged approach (blockout → structure → form → material → lighting → optimisation).
 They are rendered into a quarter-resolution target, blurred, and used as the stage background, so
-they always sit behind the figure and read as out of focus. They are skipped on phones and on
+they always sit behind the ring and read as out of focus. They are skipped on phones and on
 low-power devices.
 
 The image collections could not be reached from the build machine, so each reference is a written

@@ -135,17 +135,25 @@ html { scrollbar-color: #b9bde0 var(--canvas); }
   text-decoration: none; color: var(--fog); font-size: 14px; transition: color 0.2s, background-color 0.2s;
 }
 .nav__links a:hover { color: var(--on-dark); background: rgba(175, 178, 206, 0.12); }
+.nav__toggle { display: none; background: rgba(175, 178, 206, 0.16); color: var(--on-dark); }
+.nav__toggle:hover { background: rgba(175, 178, 206, 0.26); }
 @media (max-width: 760px) {
+  .nav__inner { position: relative; height: 64px; gap: 10px; }
   .nav nav { display: none; }
   .nav .btn { margin-left: auto; }
-  .nav__inner { height: 64px; }
+  .nav__toggle { display: inline-grid; }
+  .nav.is-open nav {
+    display: block; position: absolute; top: 64px; left: 0; right: 0; margin: 0;
+    padding: 4px var(--gutter) 20px; background: var(--stage);
+  }
+  .nav.is-open .nav__links { flex-direction: column; gap: 2px; }
+  .nav.is-open .nav__links a { height: 48px; padding: 0 12px; font-size: 18px; color: var(--on-dark); }
 }
 
 /* ── Hero ──────────────────────────────────────────────────────────────────── */
 .hero {
-  --figure-x: 50%;
   position: relative;
-  min-height: clamp(600px, calc(100svh - 72px), 980px);
+  min-height: clamp(640px, calc(100svh - 72px), 1000px);
   background: var(--stage);
   color: var(--on-dark);
   overflow: hidden;
@@ -155,67 +163,87 @@ html { scrollbar-color: #b9bde0 var(--canvas); }
 /* the canvas fades out at its edges so the stage melts into the page */
 #scene {
   position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: pan-y;
-  opacity: 0; transition: opacity 1.2s var(--ease-out);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 9%, #000 84%, transparent 100%), linear-gradient(to right, transparent 0, #000 7%, #000 93%, transparent 100%); /* taste-skill-ignore: edge fade for a seamless hero */
+  opacity: 0; transition: opacity 1.4s var(--ease-out);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 7%, #000 86%, transparent 100%), linear-gradient(to right, transparent 0, #000 5%, #000 95%, transparent 100%); /* taste-skill-ignore: edge fade for a seamless hero */
   -webkit-mask-composite: source-in;
-  mask-image: linear-gradient(to bottom, transparent 0, #000 9%, #000 84%, transparent 100%), linear-gradient(to right, transparent 0, #000 7%, #000 93%, transparent 100%); /* taste-skill-ignore */
+  mask-image: linear-gradient(to bottom, transparent 0, #000 7%, #000 86%, transparent 100%), linear-gradient(to right, transparent 0, #000 5%, #000 95%, transparent 100%); /* taste-skill-ignore */
   mask-composite: intersect;
 }
 .is-ready #scene { opacity: 1; }
+
+/* the name sits in the middle of the ring; drags pass through it to the canvas */
 .hero__inner { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
-/* while a certificate is open, quiet the orbit behind the panel text */
-.hero__stage::after {
-  content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.6s var(--ease-out);
-  background: linear-gradient(to right, rgba(10, 19, 48, 0.92) 0%, rgba(10, 19, 48, 0.8) 30%, rgba(10, 19, 48, 0) 50%); /* taste-skill-ignore: scrim behind panel text */
+.hero__copy {
+  position: absolute; left: 50%; top: 50%; width: min(980px, calc(100% - 2 * var(--gutter)));
+  transform: translate(-50%, -50%); text-align: center;
+  transition: opacity 0.5s var(--ease-out), transform 0.5s var(--ease-out);
 }
-.is-panel-open .hero__stage::after { opacity: 1; }
-.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; } /* taste-skill-ignore: visually hidden */
+.hero__copy::before {
+  content: ''; position: absolute; inset: -38% -18%; z-index: -1; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(10, 19, 48, 0.86), rgba(10, 19, 48, 0.55) 55%, rgba(10, 19, 48, 0)); /* taste-skill-ignore: keeps the name readable as cards pass behind it */
+}
+.hero__name { font-size: clamp(44px, 5.4vw, 84px); font-weight: 480; line-height: 0.98; letter-spacing: -0.03em; text-wrap: balance; }
+.hero__headline { margin-top: 20px; font-size: clamp(16px, 1.5vw, 21px); font-weight: 450; color: var(--periwinkle); }
+.hero__tagline { margin: 14px auto 0; max-width: 36em; font-size: clamp(15px, 1.2vw, 17px); font-weight: 380; line-height: 1.55; }
+.hero__actions { margin-top: 28px; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; pointer-events: auto; }
+.is-panel-open .hero__copy { opacity: 0; transform: translate(-50%, -46%); }
+.is-panel-open .hero__actions { pointer-events: none; }
+.is-static .hero__copy { top: 34%; }
 
 .loader {
-  position: absolute; left: var(--figure-x); top: 50%; transform: translate(-50%, -50%);
+  position: absolute; left: 50%; top: 80%; transform: translate(-50%, -50%);
   display: grid; justify-items: center; gap: 12px; color: var(--fog); font-size: 14px;
   transition: opacity 0.6s;
 }
-.loader svg { width: 48px; height: 48px; transform: rotate(-90deg); }
+.loader svg { width: 40px; height: 40px; transform: rotate(-90deg); }
 .loader circle { fill: none; stroke-width: 2; }
 .loader__track { stroke: rgba(195, 195, 204, 0.18); }
 .loader__bar { stroke: var(--periwinkle); stroke-linecap: round; stroke-dasharray: 132; stroke-dashoffset: 132; transition: stroke-dashoffset 0.3s; }
 .is-ready .loader, .is-static .loader { opacity: 0; pointer-events: none; }
 
-/* Static hero: reduced motion, no WebGL, or the 3D script could not load */
-.still { position: absolute; inset: 0; display: grid; grid-template-columns: auto auto; align-items: center; justify-content: center; gap: clamp(32px, 5vw, 72px); padding: 64px var(--gutter); }
-.still[hidden] { display: none; }
-.still__figure { position: relative; width: clamp(150px, 15vw, 210px); }
-.still__figure::after {
-  content: ''; position: absolute; left: 50%; bottom: -10px; width: 120%; height: 22px; transform: translateX(-50%); z-index: -1;
-  border-radius: 50%; background: radial-gradient(closest-side, rgba(2, 5, 16, 0.7), rgba(2, 5, 16, 0)); /* taste-skill-ignore: contact shadow */
+/* name of the certificate under the pointer */
+.ring-label {
+  position: absolute; left: 0; top: 0; z-index: 1; pointer-events: none; white-space: nowrap;
+  padding: 7px 12px; border-radius: var(--r-pill); background: rgba(18, 29, 64, 0.92); color: var(--on-dark); font-size: 14px;
 }
-.still__figure img { width: 100%; height: auto; }
-.still__grid { display: grid; grid-template-columns: repeat(2, 132px); gap: 12px; }
-.still__grid button {
+
+/* Static hero: reduced motion, no WebGL, or the 3D script could not load */
+.still {
+  position: absolute; left: 50%; top: 66%; transform: translateX(-50%); z-index: 3;
+  display: grid; grid-template-columns: repeat(8, 112px); gap: 12px;
+}
+.still button {
   display: block; width: 100%; padding: 0; border: 0; border-radius: var(--r-sm); overflow: hidden; cursor: pointer;
   background: var(--surface); aspect-ratio: 4 / 3; transition: transform 0.25s var(--ease-out);
 }
-.still__grid button:hover { transform: translateY(-3px); }
-.still__grid img { width: 100%; height: 100%; object-fit: contain; }
+.still button:hover { transform: translateY(-3px); }
+.still img { width: 100%; height: 100%; object-fit: contain; }
 
-/* Keyboard access to the orbiting certificates */
+/* Keyboard access to the certificates in the ring */
 .cert-keys {
   position: absolute; z-index: 3; left: max(var(--gutter), calc((100% - 1280px) / 2 + var(--gutter))); right: max(var(--gutter), calc((100% - 1280px) / 2 + var(--gutter))); bottom: 20px;
+  padding: 16px; border-radius: var(--r-lg); background: rgba(10, 19, 48, 0.92);
   opacity: 0; pointer-events: none; transform: translateY(8px);
   transition: opacity 0.25s, transform 0.25s var(--ease-out);
 }
 .cert-keys:focus-within { opacity: 1; pointer-events: auto; transform: none; }
 .cert-keys__label { font-size: 14px; color: var(--fog); margin-bottom: 8px; }
-.cert-keys ul { display: flex; flex-wrap: wrap; gap: 8px; }
+.cert-keys ul { display: flex; flex-wrap: wrap; gap: 6px; }
 .cert-keys button {
-  height: 36px; padding: 0 14px; border: 0; border-radius: var(--r-pill); cursor: pointer;
-  background: rgba(175, 178, 206, 0.16); color: var(--on-dark); font-size: 14px;
+  height: 32px; padding: 0 12px; border: 0; border-radius: var(--r-pill); cursor: pointer;
+  background: rgba(175, 178, 206, 0.16); color: var(--on-dark); font-size: 13px;
 }
 .cert-keys button:hover, .cert-keys button:focus-visible { background: rgba(82, 102, 235, 0.5); }
 .is-static .cert-keys { display: none; }
 
-/* Detail panel for a certificate pulled out of the orbit */
+/* while a certificate is open, quiet the ring behind the panel text */
+.hero__stage::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.6s var(--ease-out);
+  background: linear-gradient(to right, rgba(10, 19, 48, 0.92) 0%, rgba(10, 19, 48, 0.8) 30%, rgba(10, 19, 48, 0) 50%); /* taste-skill-ignore: scrim behind panel text */
+}
+.is-panel-open .hero__stage::after { opacity: 1; }
+
+/* Detail panel for a certificate pulled out of the ring */
 .cert-panel {
   position: absolute; left: max(var(--gutter), calc((100% - 1280px) / 2 + var(--gutter))); top: 50%; width: min(420px, 34vw);
   transform: translateY(-50%); pointer-events: auto;
@@ -229,8 +257,12 @@ html { scrollbar-color: #b9bde0 var(--canvas); }
 .cert-panel__meta dd { font-size: 18px; margin-top: 4px; }
 .cert-panel__actions { margin-top: 32px; display: flex; flex-wrap: wrap; gap: 10px; }
 
+@media (max-width: 1100px) { .still { grid-template-columns: repeat(4, 112px); top: 60%; } }
 @media (max-width: 900px) {
-  .hero { min-height: clamp(480px, 128vw, 640px); }
+  .hero { min-height: clamp(600px, 168vw, 780px); }
+  .hero__copy { top: 25%; }
+  .hero__copy::before { inset: -30% -6%; }
+  .hero__tagline { display: none; }
   .hero__stage::after { display: none; }
   .cert-panel {
     top: auto; bottom: 16px; left: 16px; right: 16px; width: auto; transform: none;
@@ -245,9 +277,8 @@ html { scrollbar-color: #b9bde0 var(--canvas); }
   .cert-panel__meta dd { font-size: 14px; margin-top: 0; }
   .cert-panel__actions { margin-top: 14px; gap: 8px; }
   .cert-panel__actions .btn { --h: 36px; padding: 0 14px; font-size: 14px; }
-  .still { grid-template-columns: auto 1fr; gap: 20px; }
-  .still__figure { width: clamp(120px, 34vw, 170px); }
-  .still__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 280px; }
+  .is-static .hero__copy { top: 26%; }
+  .still { top: 52%; grid-template-columns: repeat(4, minmax(0, 76px)); gap: 8px; }
 }
 
 /* ── Stats strip: still on the stage, then the stage fades into the page ─── */
@@ -361,6 +392,10 @@ html { scrollbar-color: #b9bde0 var(--canvas); }
 .cert-card__title { font-size: 16px; font-weight: 480; line-height: 1.3; }
 .cert-card__sub { display: block; margin-top: 4px; font-size: 14px; color: var(--ink-secondary); }
 .certs__grid li[hidden] { display: none; }
+.certs__grid li.is-extra { display: none; }
+.certs__more { margin: 32px auto 0; display: flex; }
+.btn--tint { background: var(--lavender); color: var(--ink); }
+.btn--tint:hover { background: #dfddf7; }
 @media (max-width: 640px) {
   .certs__head { display: block; }
   .tabs { margin-top: 24px; padding: 0; background: none; }
@@ -452,7 +487,7 @@ html { scrollbar-color: #b9bde0 var(--canvas); }
   .js [data-reveal] { opacity: 1; transform: none; transition: none; }
   /* drop travel and scaling, keep colour and opacity feedback */
   .cert-panel, .lightbox[open], .btn .spinner { animation: none; }
-  .btn:active, .icon-btn:active, .still__grid button:hover, .cert-card:hover .cert-card__img img { transform: none; }
+  .btn:active, .icon-btn:active, .still button:hover, .cert-card:hover .cert-card__img img { transform: none; }
   .hero__copy, .cert-keys { transition: opacity 0.2s; transform: none; }
 }
 </style>
@@ -532,7 +567,8 @@ window.RESUME = {
 
   // Certificates. Images live in assets/certs/<id>.webp (+ <id>-thumb.webp).
   // category: 'Accounting & Tax' | 'AI & Automation' | 'Data Analytics'
-  // featured: true = one of the 8 that orbit the figure in the hero (keep it to 8).
+  // The 3D ring in the hero shows every certificate, in this order.
+  // featured: true = one of the 8 shown in the still hero (reduced motion / no 3D). Keep it to 8.
   certificates: [
     { id: 'chartered-tax-professional', title: 'Chartered Tax Professional (CTP)', issuer: 'Association of Chartered Tax Professionals of the Philippines', year: '2024', category: 'Accounting & Tax', featured: true, verifyUrl: '' },
     { id: 'niat-member', title: 'Member, National Institute of Accounting Technicians', issuer: 'National Institute of Accounting Technicians (NIAT)', year: '2024', category: 'Accounting & Tax', featured: true, verifyUrl: '' },
@@ -593,13 +629,16 @@ window.google = { script: { run: (function () {
     <div class="wrap nav__inner">
       <a class="nav__brand" href="#top" data-scroll data-bind="name"></a>
       <nav aria-label="Sections">
-        <ul class="nav__links">
+        <ul class="nav__links" id="nav-links">
           <li><a href="#work" data-scroll>Work</a></li>
           <li><a href="#experience" data-scroll>Experience</a></li>
           <li><a href="#certificates" data-scroll>Certificates</a></li>
         </ul>
       </nav>
       <a class="btn btn--primary btn--sm" href="#contact" data-scroll>Contact me</a>
+      <button class="nav__toggle icon-btn" type="button" id="nav-toggle" aria-expanded="false" aria-controls="nav-links" aria-label="Menu">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16M4 16h16"/></svg>
+      </button>
     </div>
   </header>
 
@@ -612,14 +651,20 @@ window.google = { script: { run: (function () {
           <svg viewBox="0 0 48 48" aria-hidden="true"><circle class="loader__track" cx="24" cy="24" r="21"/><circle class="loader__bar" id="loader-bar" cx="24" cy="24" r="21"/></svg>
           <span id="loader-text">Loading</span>
         </div>
-        <figure class="still" id="still" hidden>
-          <div class="still__figure" id="still-figure"></div>
-          <ul class="still__grid" id="still-grid" aria-label="Featured certificates"></ul>
-        </figure>
+        <div class="ring-label" id="ring-label" aria-hidden="true" hidden></div>
+        <ul class="still" id="still" aria-label="Featured certificates" hidden></ul>
       </div>
 
       <div class="wrap hero__inner">
-        <h1 class="sr-only" id="hero-title" data-bind="name"></h1>
+        <div class="hero__copy" id="hero-copy">
+          <h1 class="hero__name" id="hero-title" data-bind="name"></h1>
+          <p class="hero__headline" data-bind="headline"></p>
+          <p class="hero__tagline" data-bind="tagline"></p>
+          <div class="hero__actions">
+            <a class="btn btn--primary" href="#contact" data-scroll>Contact me</a>
+            <a class="btn btn--glass" href="#work" data-scroll>View my work</a>
+          </div>
+        </div>
 
         <aside class="cert-panel" id="cert-panel" aria-live="polite" hidden>
           <h2 class="cert-panel__title" id="cp-title"></h2>
@@ -637,7 +682,7 @@ window.google = { script: { run: (function () {
       </div>
 
       <div class="cert-keys" id="cert-keys">
-        <p class="cert-keys__label" id="cert-keys-label">Featured certificates</p>
+        <p class="cert-keys__label" id="cert-keys-label">Certificates in the ring</p>
         <ul aria-labelledby="cert-keys-label" id="cert-keys-list"></ul>
       </div>
     </section>
@@ -693,6 +738,7 @@ window.google = { script: { run: (function () {
           <div class="tabs" role="tablist" aria-label="Filter certificates" id="cert-tabs"></div>
         </div>
         <ul class="certs__grid" id="cert-grid" role="tabpanel" aria-label="Certificates in the selected category"></ul>
+        <button class="btn btn--tint certs__more" type="button" id="cert-more" hidden></button>
       </div>
     </section>
 
@@ -881,6 +927,30 @@ window.google = { script: { run: (function () {
     $('cert-grid').appendChild(el('li', { 'data-cat': c.category, 'data-reveal': '', style: '--d:' + ((i % 4) * 70) + 'ms' }, [btn]));
   });
 
+  // On phones the gallery starts with six certificates and a "Show all" button.
+  var mqSmall = window.matchMedia('(max-width: 640px)');
+  var collapsed = true;
+  var LIMIT = 6;
+  function applyCollapse() {
+    var shown = 0;
+    $('cert-grid').querySelectorAll('li').forEach(function (li) {
+      li.classList.remove('is-extra');
+      if (li.hidden) return;
+      shown++;
+      if (collapsed && mqSmall.matches && shown > LIMIT) li.classList.add('is-extra');
+    });
+    var more = $('cert-more');
+    more.hidden = !(collapsed && mqSmall.matches && shown > LIMIT);
+    more.textContent = 'Show all ' + shown + ' certificates';
+  }
+  $('cert-more').addEventListener('click', function () {
+    collapsed = false;
+    var first = $('cert-grid').querySelector('li.is-extra button');
+    applyCollapse();
+    if (first) first.focus();
+  });
+  if (mqSmall.addEventListener) mqSmall.addEventListener('change', applyCollapse);
+
   function selectTab(btn, focus) {
     activeCat = btn.getAttribute('data-cat');
     $('cert-tabs').querySelectorAll('[role=tab]').forEach(function (t) {
@@ -895,6 +965,7 @@ window.google = { script: { run: (function () {
       li.hidden = !show;
       if (show) li.classList.add('is-in');
     });
+    applyCollapse();
   }
   $('cert-tabs').addEventListener('click', function (e) {
     var b = e.target.closest('[role=tab]');
@@ -907,6 +978,8 @@ window.google = { script: { run: (function () {
     if (e.key === 'ArrowRight') { e.preventDefault(); selectTab(tabs[(i + 1) % tabs.length], true); }
     if (e.key === 'ArrowLeft') { e.preventDefault(); selectTab(tabs[(i - 1 + tabs.length) % tabs.length], true); }
   });
+
+  applyCollapse();
 
   // ── Lightbox ──────────────────────────────────────────────────────────────
   var lb = $('lightbox');
@@ -1053,6 +1126,14 @@ window.google = { script: { run: (function () {
     });
   });
   var nav = $('nav');
+  var toggle = $('nav-toggle');
+  function setMenu(open) {
+    nav.classList.toggle('is-open', open);
+    toggle.setAttribute('aria-expanded', String(open));
+  }
+  toggle.addEventListener('click', function () { setMenu(!nav.classList.contains('is-open')); });
+  nav.querySelectorAll('.nav__links a').forEach(function (a) { a.addEventListener('click', function () { setMenu(false); }); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && nav.classList.contains('is-open')) { setMenu(false); toggle.focus(); } });
   window.addEventListener('scroll', function () { nav.classList.toggle('is-scrolled', window.scrollY > 40); }, { passive: true });
 
   // ── Reveals ───────────────────────────────────────────────────────────────
@@ -1077,16 +1158,14 @@ window.google = { script: { run: (function () {
     staticMode = true;
     root.classList.add('is-static');
     root.classList.remove('is-ready');
-    var still = $('still');
-    $('still-figure').appendChild(el('img', { src: asset('turntable/front.webp'), alt: 'Photo of ' + C.name + ' in a navy suit', width: '192', height: '512' }));
     featured.forEach(function (c) {
       var b = el('button', { type: 'button', 'aria-label': 'Open certificate: ' + c.title }, [
         el('img', { src: asset('certs/' + c.id + '-thumb.webp'), alt: '', loading: 'lazy' })
       ]);
       b.addEventListener('click', function () { openLightbox(c.id, featured); });
-      $('still-grid').appendChild(el('li', null, [b]));
+      $('still').appendChild(el('li', null, [b]));
     });
-    still.hidden = false;
+    $('still').hidden = false;
     $('loader').setAttribute('aria-hidden', 'true');
     if (window.console && reason) console.info('[resume] still hero: ' + reason);
   }
@@ -1094,6 +1173,7 @@ window.google = { script: { run: (function () {
   window.ResumeApp = {
     asset: asset,
     featured: featured,
+    certificates: certs,
     openLightbox: openLightbox,
     enterStatic: enterStatic,
     isStatic: function () { return staticMode; }
@@ -1110,8 +1190,9 @@ window.google = { script: { run: (function () {
 
   <script type="module">
 /*
- * Hero stage: a 360° photo turntable, centred, with the featured certificates
- * orbiting in 3D. Falls back to the still hero (App.html) on any failure.
+ * Hero stage: every certificate stands in a slowly spinning 3D ring around the name, under a
+ * starry sky. Cards flip to show their title as they pass the front. Drag to spin, hover to
+ * pause, click to bring one forward. Falls back to the still hero (App.html) on any failure.
  */
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -1137,9 +1218,9 @@ async function start() {
   const hero = document.querySelector('.hero');
   const stage = $('stage');
   const canvas = $('scene');
+  const label = $('ring-label');
 
   let sheen = null; // shared glass texture for the certificate cards
-  let orbitSpin = 0; // extra orbit angle (radians) driven by dragging, shared by every certificate
   const COLORS = { stage: 0x0a1330, raised: 0x121d40, accent: 0x5266eb, periwinkle: 0x9cb4e8 };
   const mqMobile = window.matchMedia('(max-width: 900px)');
   const isMobile = () => mqMobile.matches;
@@ -1149,27 +1230,27 @@ async function start() {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: !lowPower, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, lowPower ? 1.5 : 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.NoToneMapping; // keep the photos true to colour
+  renderer.toneMapping = THREE.NoToneMapping; // keep the certificates true to colour
   canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); App.enterStatic('WebGL context lost'); });
 
   const scene = new THREE.Scene();
   const stageColor = new THREE.Color(COLORS.stage);
   scene.background = stageColor;
-  scene.fog = new THREE.FogExp2(COLORS.stage, 0.035);
+  scene.fog = new THREE.FogExp2(COLORS.stage, 0.03);
 
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
   scene.environmentIntensity = 0.45;
 
-  const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
-  const LOOK = new THREE.Vector3(0, 1.6, 0);
+  const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 200);
+  const LOOK = new THREE.Vector3();
 
-  scene.add(new THREE.HemisphereLight(COLORS.periwinkle, COLORS.stage, 0.7));
+  scene.add(new THREE.HemisphereLight(COLORS.periwinkle, COLORS.stage, 0.8));
   const key = new THREE.DirectionalLight(0xfff3e4, 2.2);
-  key.position.set(-4, 6, 7);
+  key.position.set(-4, 7, 9);
   scene.add(key);
-  const rim = new THREE.DirectionalLight(COLORS.accent, 4);
-  rim.position.set(4, 3, -6);
+  const rim = new THREE.DirectionalLight(COLORS.accent, 3);
+  rim.position.set(4, 3, -8);
   scene.add(rim);
 
   // ── Loading ───────────────────────────────────────────────────────────────
@@ -1189,53 +1270,30 @@ async function start() {
     resolve(t);
   }, undefined, () => reject(new Error('Could not load ' + url))));
 
-  const featured = App.featured;
-  const avatarUrl = App.asset('avatar.glb');
-  const [meta, avatarExists, ...textures] = await Promise.all([
-    fetch(App.asset('turntable/frames.json')).then((r) => { if (!r.ok) throw new Error('frames.json'); return r.json(); }),
-    avatarAvailable(),
-    loadTex(App.asset('turntable/atlas.webp')),
-    ...featured.map((c) => loadTex(App.asset('certs/' + c.id + '-thumb.webp')))
+  const certs = App.certificates;
+  const fontsReady = Promise.race([document.fonts ? document.fonts.ready : Promise.resolve(), new Promise((r) => setTimeout(r, 2500))]);
+  const [textures] = await Promise.all([
+    Promise.all(certs.map((c) => loadTex(App.asset('certs/' + c.id + '-thumb.webp')))),
+    fontsReady
   ]);
-  const [atlasTex, ...certTex] = textures;
 
-  // ── Soft contact shadow under the feet (no platform) ───────────────────── taste-skill-ignore
-  // taste-skill-ignore: grounding shadow for the figure
-  const shadow = flatDisc(1.9, radialTexture([[0, 'rgba(2,5,16,0.8)'], [0.45, 'rgba(2,5,16,0.4)'], [1, 'rgba(2,5,16,0)']]), THREE.NormalBlending, 0.004); // taste-skill-ignore
-  shadow.scale.set(1, 0.4, 1);
-  scene.add(shadow);
+  // ── Sky ───────────────────────────────────────────────────────────────────
+  const sky = makeStarfield(lowPower ? 1400 : 3200, lowPower ? 900 : 2600);
+  scene.add(sky);
+  const shooting = lowPower ? null : makeShootingStars();
+  if (shooting) scene.add(shooting.group);
 
-  // ── Figure: photo turntable (or a 3D avatar if assets/avatar.glb exists) ─
-  const FIG_H = 3.3; // head-to-feet height in world units
-  const figure = new THREE.Group();
-  scene.add(figure);
-  let setFigureAngle;
+  // ── The ring ──────────────────────────────────────────────────────────────
+  const RADIUS = 3.8;
+  const PAPER = 0.93; // keeps white paper (plus the glass sheen) under the bloom threshold
+  const ring = new THREE.Group();
+  scene.add(ring);
+  const cards = certs.map((c, i) => makeCard(c, textures[i], i, certs.length));
+  cards.forEach((card) => ring.add(card.group));
+  const hitTargets = cards.flatMap((c) => c.hits);
 
-  if (avatarExists || (avatarExists === null && meta.avatar)) {
-    const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
-    const gltf = await new GLTFLoader().loadAsync(avatarUrl);
-    const model = gltf.scene;
-    const box = new THREE.Box3().setFromObject(model);
-    const size = box.getSize(new THREE.Vector3());
-    model.scale.setScalar(FIG_H / size.y);
-    box.setFromObject(model);
-    model.position.y -= box.min.y;
-    figure.add(model);
-    setFigureAngle = (deg) => { figure.rotation.y = THREE.MathUtils.degToRad(deg); };
-  } else {
-    const turntable = makeTurntable(atlasTex, meta, FIG_H);
-    figure.add(turntable.mesh);
-    setFigureAngle = turntable.setAngle;
-  }
-
-  // ── Featured certificates in orbit ──────────────────────────────────────
-  const cards = featured.map((c, i) => makeCard(c, certTex[i], i, featured.length));
-  cards.forEach((card) => scene.add(card.group));
-  const hitTargets = cards.map((c) => c.hit);
-
-  // ── Particles ─────────────────────────────────────────────────────────────
-  const particles = makeParticles(lowPower ? 26 : 70);
-  scene.add(particles);
+  // soft pool of light on the floor of the ring
+  ring.add(flatDisc(RADIUS * 2.6, radialTexture([[0, 'rgba(82,102,235,0.16)'], [0.55, 'rgba(82,102,235,0.05)'], [1, 'rgba(82,102,235,0)']], 512), THREE.AdditiveBlending, -0.62));
 
   // ── Soft background props (desktop only) ─────────────────────────────────
   const props = lowPower ? null : makeBackdropProps();
@@ -1245,69 +1303,47 @@ async function start() {
   if (!lowPower) {
     composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
-    composer.addPass(new UnrealBloomPass(new THREE.Vector2(256, 256), 0.5, 0.45, 1.05));
+    composer.addPass(new UnrealBloomPass(new THREE.Vector2(256, 256), 0.55, 0.5, 1.05));
     composer.addPass(new OutputPass());
   }
 
-  // ── Layout ────────────────────────────────────────────────────────────────
-  let W = 1, H = 1, orbitScale = 1;
+  // ── Layout: camera above the ring so it reads as an ellipse around the name ─
+  let W = 1, H = 1;
+  const baseCam = new THREE.Vector3();
   function layout() {
     W = Math.max(1, stage.clientWidth);
     H = Math.max(1, stage.clientHeight);
     renderer.setSize(W, H, false);
     if (composer) composer.setSize(W, H);
     camera.aspect = W / H;
-    const tan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
     if (isMobile()) {
-      orbitScale = 0.64;
-      const needHalfW = 1.9;
-      camera.position.set(0, 1.85, Math.max(9.5, needHalfW / (tan * camera.aspect)));
-      camera.clearViewOffset();
+      // the ring runs off both sides on a phone; the front cards stay big enough to read
+      camera.fov = 34;
+      camera.position.set(0, 6.4, 12.5);
+      LOOK.set(0, 1.25, 0);
     } else {
-      // figure centred; keep the whole orbit inside the frame
-      orbitScale = 1;
-      const needHalfW = 3.2;
-      camera.position.set(0, 1.85, Math.max(8.8, needHalfW / (tan * camera.aspect)));
-      camera.clearViewOffset();
+      camera.fov = 30;
+      const push = Math.pow(Math.max(1, 1.7 / camera.aspect), 0.8);
+      camera.position.set(0, 6.9 * push, 12 * push);
+      LOOK.set(0, -0.35, 0);
     }
     baseCam.copy(camera.position);
     camera.lookAt(LOOK);
     camera.updateProjectionMatrix();
-    if (props) props.resize(W, H, renderer.getPixelRatio());
+    if (props) props.resize(W, H);
+    sky.material.uniforms.uScale.value = renderer.getPixelRatio();
   }
-  const baseCam = new THREE.Vector3();
   layout();
   new ResizeObserver(layout).observe(stage);
 
-  // ── Rotation: auto spin with a pause on the front view, drag with inertia ─
-  const AUTO = 21;        // degrees per second
-  const FRONT_HOLD = 1.6; // seconds
-  const rot = { angle: 0, vel: 0, hold: 1.2, dragging: false, lastDrag: -10 };
+  // ── Spin: slow auto rotation, drag with inertia, pause while hovering ────
+  const AUTO = 0.11; // radians per second, one turn in about a minute
+  const spin = { angle: 0, vel: 0, dragging: false };
 
-  function updateRotation(dt, now) {
-    if (!rot.dragging) {
-      let target = AUTO;
-      if (rot.hold > 0) { rot.hold -= dt; target = 0; }
-      else if (now - rot.lastDrag > 2.5 && rot.angle > 312) {
-        target = AUTO * Math.max(0.1, (360 - rot.angle) / 48); // ease into the front view
-      }
-      rot.vel += (target - rot.vel) * (1 - Math.exp(-dt * (rot.hold > 0 ? 5 : 1.6)));
-      rot.angle += rot.vel * dt;
-      // the part of the spin that comes from the user's fling also carries the certificates
-      orbitSpin += THREE.MathUtils.degToRad(rot.vel - target) * dt * 0.8;
-    }
-    if (rot.angle >= 360) {
-      rot.angle -= 360;
-      if (!rot.dragging && now - rot.lastDrag > 2.5 && rot.vel < AUTO * 0.6) { rot.angle = 0; rot.hold = FRONT_HOLD; }
-    }
-    if (rot.angle < 0) rot.angle += 360;
-    setFigureAngle(rot.angle);
-  }
-
-  // ── Pointer: drag to turn, hover/click certificates ──────────────────────
+  // ── Pointer ───────────────────────────────────────────────────────────────
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
-  const pointer = { x: 0, y: 0, id: null, startX: 0, startY: 0, lastX: 0, lastT: 0, moved: 0, inside: false };
+  const pointer = { id: null, startX: 0, startY: 0, lastX: 0, lastT: 0, moved: 0 };
   const parallax = new THREE.Vector2();
   let hovered = null;
   let openCard = null;
@@ -1323,8 +1359,12 @@ async function start() {
     if (hovered === card) return;
     if (hovered) hovered.hover = false;
     hovered = card;
-    if (card) card.hover = true;
-    canvas.style.cursor = card ? 'pointer' : (rot.dragging ? 'grabbing' : 'grab');
+    if (card) {
+      card.hover = true;
+      label.textContent = card.cert.title;
+    }
+    label.hidden = !card;
+    canvas.style.cursor = card ? 'pointer' : (spin.dragging ? 'grabbing' : 'grab');
   }
 
   canvas.addEventListener('pointerdown', (e) => {
@@ -1334,21 +1374,21 @@ async function start() {
     pointer.startY = e.clientY;
     pointer.lastT = performance.now();
     pointer.moved = 0;
-    rot.dragging = true;
-    rot.vel = 0;
+    spin.dragging = true;
+    spin.vel = 0;
     canvas.setPointerCapture(e.pointerId);
   });
   canvas.addEventListener('pointermove', (e) => {
     const r = canvas.getBoundingClientRect();
     parallax.set(((e.clientX - r.left) / r.width) * 2 - 1, ((e.clientY - r.top) / r.height) * 2 - 1);
-    if (rot.dragging && e.pointerId === pointer.id) {
+    if (spin.dragging && e.pointerId === pointer.id) {
       const now = performance.now();
       const dx = e.clientX - pointer.lastX;
       const dt = Math.max(1, now - pointer.lastT) / 1000;
       pointer.moved += Math.abs(dx) + Math.abs(e.clientY - pointer.startY) * 0.2;
-      rot.angle += dx * 0.4;
-      orbitSpin += THREE.MathUtils.degToRad(dx * 0.4) * 0.8; // certificates follow the drag
-      rot.vel = THREE.MathUtils.clamp(rot.vel * 0.5 + (dx * 0.4 / dt) * 0.5, -500, 500);
+      const d = dx * (isMobile() ? 0.009 : 0.0055); // drag right: the front of the ring moves right
+      spin.angle += d;
+      spin.vel = THREE.MathUtils.clamp(spin.vel * 0.5 + (d / dt) * 0.5, -6, 6);
       pointer.lastX = e.clientX;
       pointer.lastT = now;
       if (pointer.moved > 6) setHovered(null);
@@ -1358,11 +1398,9 @@ async function start() {
     }
   });
   const endDrag = (e) => {
-    if (!rot.dragging || e.pointerId !== pointer.id) return;
-    rot.dragging = false;
-    rot.lastDrag = clock.elapsedTime;
-    rot.hold = 0;
-    if (performance.now() - pointer.lastT > 80) rot.vel = 0; // released after holding still
+    if (!spin.dragging || e.pointerId !== pointer.id) return;
+    spin.dragging = false;
+    if (performance.now() - pointer.lastT > 80) spin.vel = 0; // released after holding still
     if (e.type === 'pointerup' && pointer.moved < 6) {
       const card = pick(e);
       if (card) open(card);
@@ -1371,10 +1409,10 @@ async function start() {
   };
   canvas.addEventListener('pointerup', endDrag);
   canvas.addEventListener('pointercancel', endDrag);
-  canvas.addEventListener('pointerleave', () => { if (!rot.dragging) setHovered(null); parallax.set(0, 0); });
+  canvas.addEventListener('pointerleave', () => { if (!spin.dragging) setHovered(null); parallax.set(0, 0); });
   canvas.style.cursor = 'grab';
 
-  // Keyboard: a focusable list of the orbiting certificates
+  // Keyboard: a focusable list of every certificate in the ring
   const keyList = $('cert-keys-list');
   cards.forEach((card) => {
     const b = document.createElement('button');
@@ -1390,12 +1428,15 @@ async function start() {
 
   // Read-only hook used by the automated browser tests.
   window.__resumeScene = {
-    get angle() { return rot.angle; },
+    get angle() { return THREE.MathUtils.radToDeg(spin.angle); },
     get openId() { return openCard ? openCard.cert.id : null; },
+    get flipping() { return cards.filter((c) => c.flip > 0).map((c) => c.cert.id); },
     cardScreen(i) {
-      const v = cards[i].group.position.clone().project(camera);
+      const v = cards[i].group.getWorldPosition(new THREE.Vector3());
+      const z = v.z;
+      v.project(camera);
       const r = canvas.getBoundingClientRect();
-      return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height, z: cards[i].group.position.z };
+      return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height, z };
     }
   };
 
@@ -1409,7 +1450,10 @@ async function start() {
     setHovered(null);
     card.state = 'toFront';
     card.anim = 0;
+    card.group.updateWorldMatrix(true, false);
     card.from.copy(card.group.position);
+    card.fromQuat.copy(card.group.quaternion);
+    card.fromScale = card.group.scale.x;
     const c = card.cert;
     $('cp-title').textContent = c.title;
     $('cp-issuer').textContent = c.issuer;
@@ -1424,17 +1468,19 @@ async function start() {
     setTimeout(() => $('cp-title').focus({ preventScroll: true }), 50);
   }
   function close() {
-    if (!openCard || openCard.state === 'toOrbit') return;
-    openCard.state = 'toOrbit';
+    if (!openCard || openCard.state === 'toRing') return;
+    openCard.state = 'toRing';
     openCard.anim = 0;
     openCard.from.copy(openCard.group.position);
+    openCard.fromQuat.copy(openCard.group.quaternion);
+    openCard.fromScale = openCard.group.scale.x;
     panel.hidden = true;
     hero.classList.remove('is-panel-open');
     if (returnFocus) returnFocus.focus({ preventScroll: true });
     else if (panel.contains(document.activeElement)) document.activeElement.blur();
   }
   $('cp-close').addEventListener('click', close);
-  $('cp-full').addEventListener('click', () => { if (openCard) App.openLightbox(openCard.cert.id, featured); });
+  $('cp-full').addEventListener('click', () => { if (openCard) App.openLightbox(openCard.cert.id); });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && openCard && !document.getElementById('lightbox').open) close();
   });
@@ -1459,67 +1505,115 @@ async function start() {
       running = false;
     }
   }
-
-  const tmp = new THREE.Vector3();
-  const frontPos = new THREE.Vector3();
   function frame() {
     if (!running) return;
     requestAnimationFrame(frame);
     step();
   }
 
+  const slot = new THREE.Vector3();
+  const slotQuat = new THREE.Quaternion();
+  const frontPos = new THREE.Vector3();
+  const frontQuat = new THREE.Quaternion();
+  const yAxis = new THREE.Vector3(0, 1, 0);
+  const flipQuat = new THREE.Quaternion();
+  const tmpV = new THREE.Vector3();
+  const FLIP_TIME = 3.4; // seconds: turn to the title side, hold, turn back to the certificate
+  let lastFlipStart = -10;
+
   function step() {
     const dt = Math.min(clock.getDelta(), 1 / 20);
     const now = clock.elapsedTime;
+    const mobile = isMobile();
 
-    updateRotation(dt, now);
+    // spin
+    if (!spin.dragging) {
+      const target = hovered || openCard ? 0 : AUTO;
+      spin.vel += (target - spin.vel) * (1 - Math.exp(-dt * (hovered ? 6 : 1.4)));
+      spin.angle += spin.vel * dt;
+    }
+    const fastSpin = Math.abs(spin.vel) > AUTO * 2.5 || spin.dragging;
 
     // gentle camera parallax
-    camera.position.x += (baseCam.x + parallax.x * 0.35 - camera.position.x) * (1 - Math.exp(-dt * 3));
-    camera.position.y += (baseCam.y - parallax.y * 0.18 - camera.position.y) * (1 - Math.exp(-dt * 3));
+    camera.position.x += (baseCam.x + parallax.x * 0.5 - camera.position.x) * (1 - Math.exp(-dt * 2.5));
+    camera.position.y += (baseCam.y - parallax.y * 0.25 - camera.position.y) * (1 - Math.exp(-dt * 2.5));
     camera.lookAt(LOOK);
-    figure.children[0].userData.billboard?.(camera);
 
-    // where a pulled-out card sits: in front of the figure, toward the camera
-    const mobile = isMobile();
-    frontPos.set(mobile ? 0 : 1.1, mobile ? 3.05 : 1.75, 0).lerp(camera.position, mobile ? 0.3 : 0.5);
+    // where a pulled-out card sits: in front of the ring, toward the camera
+    // on the camera's line of sight and parallel to the screen, so it reads as a flat rectangle
+    frontQuat.copy(camera.quaternion);
+    frontPos.set(mobile ? 0 : 0.95, mobile ? 0.55 : 0, mobile ? -6.2 : -5.6).applyQuaternion(frontQuat).add(camera.position);
 
     for (const card of cards) {
-      const paused = card.hover || card.state !== 'orbit';
-      if (!paused) card.t += dt * (openCard ? 0.35 : 1);
-      card.orbitPosition(card.t, now, orbitScale, tmp);
+      const theta = card.base + spin.angle;
+      // position on the ring, with a slow wave so the ring never looks rigid
+      slot.set(Math.sin(theta) * RADIUS, Math.sin(card.base * 3 + now * 0.35) * 0.12 + Math.sin(now * 0.9 + card.base * 5) * 0.03, Math.cos(theta) * RADIUS);
+      const lift = card.hover ? 0.35 : 0;
+      card.lift += (lift - card.lift) * (1 - Math.exp(-dt * 10));
+      slot.addScaledVector(tmpV.set(Math.sin(theta), 0, Math.cos(theta)), card.lift);
+      slotQuat.setFromAxisAngle(yAxis, theta);
 
-      if (card.state === 'orbit') {
-        card.group.position.copy(tmp);
+      // flip: as a card passes the front it turns to its title side, holds, then turns back
+      const facing = Math.atan2(Math.sin(theta), Math.cos(theta)); // 0 = straight at the camera
+      if (card.flip === 0 && !card.flippedThisPass && !fastSpin && !openCard && card.state === 'ring'
+          && Math.abs(facing) < 0.22 && now - lastFlipStart > 1.2) {
+        card.flip = 0.0001;
+        card.flippedThisPass = true;
+        lastFlipStart = now;
+      }
+      if (Math.abs(facing) > 1.3) card.flippedThisPass = false;
+      if (card.flip > 0) {
+        card.flip += dt / FLIP_TIME;
+        if (card.flip >= 1 || card.state !== 'ring') card.flip = 0;
+      }
+      const f = card.flip;
+      const flipAngle = f === 0 ? 0 : f < 0.22 ? easeInOutCubic(f / 0.22) * Math.PI
+        : f < 0.78 ? Math.PI : Math.PI + easeInOutCubic((f - 0.78) / 0.22) * Math.PI;
+      if (flipAngle) slotQuat.multiply(flipQuat.setFromAxisAngle(yAxis, flipAngle));
+
+      const g = card.group;
+      if (card.state === 'ring') {
+        g.position.copy(slot);
+        g.quaternion.copy(slotQuat);
+        const s = card.hover ? 1.1 : 1;
+        g.scale.setScalar(g.scale.x + (s - g.scale.x) * (1 - Math.exp(-dt * 10)));
       } else if (card.state === 'toFront' || card.state === 'front') {
         card.anim = Math.min(1, card.anim + dt / 0.9);
         const e = easeOutExpo(card.anim);
-        card.group.position.lerpVectors(card.from, frontPos, e);
+        g.position.lerpVectors(card.from, frontPos, e);
+        g.quaternion.slerpQuaternions(card.fromQuat, frontQuat, e);
+        g.scale.setScalar(THREE.MathUtils.lerp(card.fromScale, mobile ? 1.55 : 2.05, e));
         if (card.anim >= 1) card.state = 'front';
-      } else if (card.state === 'toOrbit') {
+      } else if (card.state === 'toRing') {
         card.anim = Math.min(1, card.anim + dt / 0.8);
         const e = easeInOutCubic(card.anim);
-        card.group.position.lerpVectors(card.from, tmp, e);
-        if (card.anim >= 1) { card.state = 'orbit'; openCard = null; }
+        g.position.lerpVectors(card.from, slot, e);
+        g.quaternion.slerpQuaternions(card.fromQuat, slotQuat, e);
+        g.scale.setScalar(THREE.MathUtils.lerp(card.fromScale, 1, e));
+        if (card.anim >= 1) { card.state = 'ring'; openCard = null; }
       }
-
-      const spin = card.state === 'toFront' ? (1 - easeOutExpo(card.anim)) * -Math.PI * 0.9 : 0;
-      card.group.quaternion.copy(camera.quaternion);
-      if (spin) card.group.rotateY(spin);
-
-      const big = card.state === 'toFront' || card.state === 'front' ? (mobile ? 1.55 : 2.3) : card.state === 'toOrbit' ? 1 : (card.hover ? 1.12 : 1);
-      const targetScale = card.state === 'toOrbit' ? THREE.MathUtils.lerp(card.group.scale.x, 1, 0.12) : big;
-      card.group.scale.setScalar(card.group.scale.x + (targetScale - card.group.scale.x) * (1 - Math.exp(-dt * 8)));
 
       const glow = card.hover ? 1 : 0;
       card.glow += (glow - card.glow) * (1 - Math.exp(-dt * 10));
       card.frameMat.emissiveIntensity = card.glow * 2.2;
       card.haloMat.opacity = card.glow * 0.55;
-      const dim = openCard && openCard !== card ? 0.45 : 1;
-      card.imgMat.color.setScalar(card.imgMat.color.r + (dim - card.imgMat.color.r) * (1 - Math.exp(-dt * 6)));
+      const dim = openCard && openCard !== card ? 0.35 : PAPER;
+      const c = card.imgMat.color.r + (dim - card.imgMat.color.r) * (1 - Math.exp(-dt * 6));
+      card.imgMat.color.setScalar(c);
+      card.backMat.color.setScalar(c);
     }
 
-    particles.material.uniforms.uTime.value = now;
+    // hover label follows the card
+    if (hovered && !openCard) {
+      hovered.group.getWorldPosition(tmpV);
+      tmpV.y += hovered.height * 0.62;
+      tmpV.project(camera);
+      label.style.transform = `translate(${((tmpV.x + 1) / 2 * W).toFixed(1)}px, ${((1 - tmpV.y) / 2 * H).toFixed(1)}px) translate(-50%, -100%)`;
+    }
+
+    sky.rotation.y = now * 0.006;
+    sky.material.uniforms.uTime.value = now;
+    if (shooting) shooting.update(dt, now);
 
     if (props) props.render(renderer, camera, now, scene);
     if (composer) composer.render(dt);
@@ -1537,213 +1631,233 @@ async function start() {
   //  Builders
   // ─────────────────────────────────────────────────────────────────────────
 
-  /** Billboard that shows the atlas frame for the current angle, with a short crossfade. */
-  function makeTurntable(tex, meta, figH) {
-    const { cols, rows, frameWidth, frameHeight, baseline, figureHeight, angles } = meta;
-    tex.generateMipmaps = true;
-    tex.minFilter = THREE.LinearMipmapLinearFilter;
-    const planeH = figH * frameHeight / figureHeight;
-    const planeW = planeH * frameWidth / frameHeight;
-    const geo = new THREE.PlaneGeometry(planeW, planeH);
-    geo.translate(0, planeH / 2 - planeH * (frameHeight - baseline) / frameHeight, 0);
-
-    const mat = new THREE.ShaderMaterial({
-      transparent: true,
-      depthWrite: false,
-      premultipliedAlpha: true,
-      uniforms: {
-        uMap: { value: tex },
-        uA: { value: new THREE.Vector3() },  // col, row, flip
-        uB: { value: new THREE.Vector3() },
-        uMix: { value: 0 },
-        uGrid: { value: new THREE.Vector2(cols, rows) },
-        uTexel: { value: new THREE.Vector2(1 / (cols * frameWidth), 1 / (rows * frameHeight)) },
-        uRim: { value: new THREE.Color(COLORS.periwinkle) },
-        uGlow: { value: new THREE.Color(COLORS.accent) }
-      },
-      vertexShader: /* glsl */`
-        varying vec2 vUv;
-        void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-      fragmentShader: /* glsl */`
-        uniform sampler2D uMap; uniform vec3 uA; uniform vec3 uB; uniform float uMix;
-        uniform vec2 uGrid; uniform vec2 uTexel; uniform vec3 uRim; uniform vec3 uGlow;
-        varying vec2 vUv;
-        vec2 cellUv(vec3 f, vec2 uv) {
-          float x = f.z > 0.5 ? 1.0 - uv.x : uv.x;
-          return vec2((f.x + x) / uGrid.x, 1.0 - (f.y + 1.0 - uv.y) / uGrid.y);
-        }
-        vec4 sampleFrame(vec3 f, vec2 uv) {
-          vec4 c = texture2D(uMap, cellUv(f, clamp(uv, 0.0, 1.0)));
-          return vec4(c.rgb * c.a, c.a); // premultiply
-        }
-        float alphaAt(vec3 f, vec2 uv) {
-          if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return 0.0;
-          return texture2D(uMap, cellUv(f, uv)).a;
-        }
-        float halo(vec3 f, vec2 uv) {
-          vec2 d = uTexel * vec2(uGrid.x, uGrid.y) * 7.0;
-          float s = 0.0;
-          for (int i = 0; i < 8; i++) {
-            float a = float(i) * 0.785398;
-            s += alphaAt(f, uv + vec2(cos(a), sin(a)) * d);
-          }
-          return s / 8.0;
-        }
-        void main() {
-          vec4 a = sampleFrame(uA, vUv);
-          vec4 b = sampleFrame(uB, vUv);
-          vec4 col = mix(a, b, uMix);
-          // rim light from behind-right: silhouette edge facing the rim
-          vec2 off = vec2(uTexel.x * uGrid.x * 3.0, 0.0);
-          float edge = col.a * (1.0 - mix(alphaAt(uA, vUv + off), alphaAt(uB, vUv + off), uMix));
-          float outer = mix(halo(uA, vUv), halo(uB, vUv), uMix) * (1.0 - col.a);
-          col.rgb += uRim * edge * 0.4 + uGlow * outer * 0.14;
-          col.a += outer * 0.07;
-          if (col.a < 0.01) discard;
-          gl_FragColor = col;
-          #include <colorspace_fragment>
-        }`
-    });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.renderOrder = 1;
-    mesh.userData.billboard = (cam) => {
-      tmpV.set(cam.position.x, mesh.position.y, cam.position.z);
-      mesh.lookAt(tmpV);
-    };
-    const tmpV = new THREE.Vector3();
-    const last = angles.length - 1;
-    const CROSSFADE = 0.24; // fraction of each step spent blending, either side of the midpoint
-
-    function cellOf(i, flip, out) {
-      // the exact front (0) and back (last) views are never mirrored
-      out.set(i % cols, Math.floor(i / cols), flip && i !== 0 && i !== last ? 1 : 0);
-    }
-    function setAngle(deg) {
-      const a = ((deg % 360) + 360) % 360;
-      const mirrored = a > 180;
-      const phi = mirrored ? 360 - a : a;
-      let i = 0;
-      while (i < last - 1 && phi > angles[i + 1]) i++;
-      const f = (phi - angles[i]) / (angles[i + 1] - angles[i]);
-      const t = THREE.MathUtils.smoothstep(f, 0.5 - CROSSFADE, 0.5 + CROSSFADE);
-      cellOf(i, mirrored, mat.uniforms.uA.value);
-      cellOf(i + 1, mirrored, mat.uniforms.uB.value);
-      mat.uniforms.uMix.value = t;
-    }
-    setAngle(0);
-    return { mesh, setAngle };
-  }
-
+  /** One certificate: a thin metal frame, the certificate on the front, its title card on the back. */
   function makeCard(cert, tex, i, n) {
     const img = tex.image;
     const aspect = img.width / img.height;
-    const width = aspect >= 1 ? 0.92 : 0.7 * aspect;
-    const height = aspect >= 1 ? 0.92 / aspect : 0.7;
+    const width = aspect >= 1 ? 0.98 : 0.7 * aspect;
+    const height = aspect >= 1 ? 0.98 / aspect : 0.7;
+    const scale = 1;
 
     const group = new THREE.Group();
     const frameMat = new THREE.MeshStandardMaterial({ color: 0x9aa6c8, metalness: 0.92, roughness: 0.24, emissive: COLORS.accent, emissiveIntensity: 0 });
     const frame = new THREE.Mesh(new RoundedBoxGeometry(width + 0.07, height + 0.07, 0.03, 3, 0.018), frameMat);
     group.add(frame);
 
-    const imgMat = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
-    const image = new THREE.Mesh(new THREE.PlaneGeometry(width, height), imgMat);
-    image.position.z = 0.0165;
-    group.add(image);
+    const imgMat = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, color: new THREE.Color(PAPER, PAPER, PAPER) });
+    const front = new THREE.Mesh(new THREE.PlaneGeometry(width, height), imgMat);
+    front.position.z = 0.0165;
+    group.add(front);
 
-    // thin glass sheen over the print
-    const glass = new THREE.Mesh(new THREE.PlaneGeometry(width, height), new THREE.MeshBasicMaterial({
-      map: sheenTexture(), transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false
-    }));
+    const backMat = new THREE.MeshBasicMaterial({ map: titleCardTexture(cert, aspect), toneMapped: false });
+    const back = new THREE.Mesh(new THREE.PlaneGeometry(width, height), backMat);
+    back.position.z = -0.0165;
+    back.rotation.y = Math.PI;
+    group.add(back);
+
+    const glassMat = new THREE.MeshBasicMaterial({
+      map: sheenTexture(), transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false
+    });
+    const glass = new THREE.Mesh(new THREE.PlaneGeometry(width, height), glassMat);
     glass.position.z = 0.018;
     group.add(glass);
 
-    // halo shown on hover (picked up by bloom)
     const haloMat = new THREE.MeshBasicMaterial({
       map: radialTexture([[0, 'rgba(120,140,255,1)'], [0.55, 'rgba(82,102,235,0.45)'], [1, 'rgba(82,102,235,0)']]),
-      transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false
+      transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide
     });
     const halo = new THREE.Mesh(new THREE.PlaneGeometry(width * 1.9, height * 1.9), haloMat);
-    halo.position.z = -0.03;
+    halo.renderOrder = -1;
     group.add(halo);
 
-    // invisible, slightly larger hit area
-    const hit = new THREE.Mesh(new THREE.PlaneGeometry(width + 0.16, height + 0.16), new THREE.MeshBasicMaterial({ visible: false }));
-    group.add(hit);
-
-    // Each card gets its own tilted orbit, radius, speed and bob
-    const radius = [2.15, 2.45, 1.95, 2.6, 2.3, 2.05, 2.5, 2.2][i % 8];
-    const tilt = new THREE.Euler(
-      [0.28, -0.22, 0.12, -0.34, 0.2, -0.1, 0.36, -0.26][i % 8],
-      0,
-      [-0.18, 0.24, -0.3, 0.1, 0.32, -0.22, 0.06, 0.2][i % 8]
-    );
-    const speed = [0.16, 0.12, 0.2, 0.1, 0.14, 0.18, 0.11, 0.15][i % 8];
-    const centerY = 1.7 + [0.35, -0.25, 0.05, 0.55, -0.4, 0.25, -0.1, 0.45][i % 8];
-    const phase = (i / n) * Math.PI * 2;
-    const bobF = 0.7 + (i % 4) * 0.13;
-    const q = new THREE.Quaternion().setFromEuler(tilt);
-
     const card = {
-      cert, group, hit, frameMat, imgMat, haloMat,
-      t: 0, state: 'orbit', anim: 0, hover: false, glow: 0, from: new THREE.Vector3(),
-      orbitPosition(t, now, scale, out) {
-        // turns the same way as the figure (front moves right); dragging adds orbitSpin
-        const a = phase - t * speed - orbitSpin;
-        out.set(Math.cos(a) * radius * scale, 0, Math.sin(a) * radius * scale * 1.1).applyQuaternion(q);
-        out.y += centerY + Math.sin(now * bobF + phase) * 0.06;
-        return out;
-      }
+      cert, group, frameMat, imgMat, backMat, haloMat, width, height, scale,
+      hits: [frame, front, back],
+      base: (i / n) * Math.PI * 2,
+      state: 'ring', anim: 0, hover: false, glow: 0, lift: 0, flip: 0, flippedThisPass: false,
+      from: new THREE.Vector3(), fromQuat: new THREE.Quaternion(), fromScale: 1
     };
-    hit.userData.card = card;
-    card.orbitPosition(0, 0, 1, group.position);
+    card.hits.forEach((m) => { m.userData.card = card; });
     return card;
   }
 
-  function makeParticles(count) {
-    const geo = new THREE.BufferGeometry();
-    const pos = new Float32Array(count * 3);
-    const seed = new Float32Array(count);
-    for (let i = 0; i < count; i++) {
-      pos[i * 3] = (Math.random() - 0.5) * 12;
-      pos[i * 3 + 1] = Math.random() * 5.2 - 0.2;
-      pos[i * 3 + 2] = -6 + Math.random() * 8.5;
+  /** The back of a card: a clean navy title card, readable from across the ring. */
+  function titleCardTexture(cert, aspect) {
+    const w = 640;
+    const h = Math.round(w / aspect);
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#121d40';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#5266eb';
+    ctx.fillRect(0, 0, w, 10);
+    const pad = Math.round(w * 0.08);
+    const font = (size, weight) => `${weight} ${size}px Inter, system-ui, sans-serif`;
+    ctx.textBaseline = 'top';
+    let y = pad;
+    ctx.fillStyle = '#9cb4e8';
+    ctx.font = font(26, 500);
+    ctx.fillText(cert.category, pad, y);
+    y += 52;
+    ctx.fillStyle = '#ededf3';
+    const titleSize = aspect >= 1 ? 44 : 50;
+    ctx.font = font(titleSize, 500);
+    y = wrapText(ctx, cert.title, pad, y, w - pad * 2, titleSize * 1.18, aspect >= 1 ? 3 : 5);
+    y += 18;
+    ctx.fillStyle = '#c3c3cc';
+    ctx.font = font(26, 400);
+    y = wrapText(ctx, cert.issuer, pad, y, w - pad * 2, 34, 2);
+    ctx.fillStyle = '#9cb4e8';
+    ctx.font = font(30, 500);
+    ctx.fillText(cert.year, pad, h - pad - 30);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 4;
+    return t;
+  }
+  function wrapText(ctx, text, x, y, maxW, lineH, maxLines) {
+    const words = String(text).split(' ');
+    let line = '';
+    let lines = 0;
+    for (let i = 0; i < words.length; i++) {
+      const test = line ? line + ' ' + words[i] : words[i];
+      if (ctx.measureText(test).width > maxW && line) {
+        if (lines === maxLines - 1) { ctx.fillText(line + '…', x, y); return y + lineH; }
+        ctx.fillText(line, x, y);
+        y += lineH;
+        lines++;
+        line = words[i];
+      } else {
+        line = test;
+      }
+    }
+    if (line) { ctx.fillText(line, x, y); y += lineH; }
+    return y;
+  }
+
+  /** Twinkling stars on a far shell, plus a faint band of tiny stars like the Milky Way. */
+  function makeStarfield(count, bandCount) {
+    const total = count + bandCount;
+    const pos = new Float32Array(total * 3);
+    const size = new Float32Array(total);
+    const seed = new Float32Array(total);
+    const tint = new Float32Array(total);
+    const v = new THREE.Vector3();
+    const band = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.5, 0, 0.42));
+    for (let i = 0; i < total; i++) {
+      const r = 45 + Math.random() * 40;
+      if (i < count) {
+        // uniform on the whole sphere: the camera looks down, so the sky behind the ring matters most
+        const u = Math.random() * 2 - 1;
+        const a = Math.random() * Math.PI * 2;
+        const s = Math.sqrt(1 - u * u);
+        v.set(s * Math.cos(a), u, s * Math.sin(a));
+        const bright = Math.random() < 0.06;
+        size[i] = bright ? 3.2 + Math.random() * 2.2 : 1.2 + Math.random() * 1.6;
+        tint[i] = bright ? 2.2 : 0.95 + Math.random() * 0.6;
+      } else {
+        // a soft tilted band
+        const a = Math.random() * Math.PI * 2;
+        const spread = (Math.random() + Math.random() + Math.random() - 1.5) * 0.22;
+        v.set(Math.cos(a), spread, Math.sin(a)).applyQuaternion(band);
+        size[i] = 0.9 + Math.random() * 0.9;
+        tint[i] = 0.4 + Math.random() * 0.35;
+      }
+      v.normalize().multiplyScalar(r);
+      pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z;
       seed[i] = Math.random();
     }
+    const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
     geo.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
+    geo.setAttribute('aTint', new THREE.BufferAttribute(tint, 1));
     const mat = new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-      uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color(COLORS.periwinkle) }, uScale: { value: renderer.getPixelRatio() } },
+      uniforms: { uTime: { value: 0 }, uScale: { value: 1 }, uWarm: { value: new THREE.Color(0xfff1dc) }, uCool: { value: new THREE.Color(COLORS.periwinkle) } },
       vertexShader: /* glsl */`
-        attribute float aSeed; uniform float uTime; uniform float uScale; varying float vA;
+        attribute float aSize; attribute float aSeed; attribute float aTint;
+        uniform float uTime; uniform float uScale;
+        varying float vA; varying float vSeed; varying float vTint;
         void main() {
-          vec3 p = position;
-          p.y = mod(position.y + uTime * (0.04 + aSeed * 0.05), 5.4) - 0.2;
-          p.x += sin(uTime * 0.2 + aSeed * 30.0) * 0.25;
-          vec4 mv = modelViewMatrix * vec4(p, 1.0);
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
           gl_Position = projectionMatrix * mv;
-          gl_PointSize = (14.0 + aSeed * 18.0) * uScale / -mv.z;
-          vA = 0.25 + 0.45 * aSeed;
+          float tw = 0.65 + 0.35 * sin(uTime * (0.6 + aSeed * 2.2) + aSeed * 40.0);
+          gl_PointSize = aSize * uScale * (0.85 + 0.3 * tw);
+          vA = tw; vSeed = aSeed; vTint = aTint;
         }`,
       fragmentShader: /* glsl */`
-        uniform vec3 uColor; varying float vA;
+        uniform vec3 uWarm; uniform vec3 uCool;
+        varying float vA; varying float vSeed; varying float vTint;
         void main() {
           float d = length(gl_PointCoord - 0.5);
-          float a = smoothstep(0.5, 0.0, d) * vA;
-          gl_FragColor = vec4(uColor * a, a);
+          float core = smoothstep(0.5, 0.0, d);
+          float a = core * vA;
+          vec3 col = mix(uCool, uWarm, step(0.6, vSeed)) * vTint;
+          gl_FragColor = vec4(col * a, a);
           #include <colorspace_fragment>
         }`
     });
     const points = new THREE.Points(geo, mat);
     points.frustumCulled = false;
-    points.renderOrder = 2;
+    points.renderOrder = -2;
     return points;
+  }
+
+  /** Now and then a thin streak crosses the sky. */
+  function makeShootingStars() {
+    const group = new THREE.Group();
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 8;
+    const ctx = c.getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, 256, 0);
+    grad.addColorStop(0, 'rgba(156,180,232,0)');
+    grad.addColorStop(0.85, 'rgba(220,230,255,0.75)');
+    grad.addColorStop(1, 'rgba(255,255,255,1)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 2, 256, 4);
+    const tex = new THREE.CanvasTexture(c);
+    const streaks = [0, 1].map(() => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(5, 0.05), new THREE.MeshBasicMaterial({
+        map: tex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, toneMapped: false
+      }));
+      m.visible = false;
+      group.add(m);
+      return { m, life: 0, vel: new THREE.Vector3() };
+    });
+    let next = 4 + Math.random() * 5;
+    return {
+      group,
+      update(dt, now) {
+        if (now > next) {
+          next = now + 6 + Math.random() * 8;
+          const s = streaks.find((x) => x.life <= 0);
+          if (s) {
+            const dir = Math.random() < 0.5 ? 1 : -1;
+            s.m.position.set(-dir * (8 + Math.random() * 10), 9 + Math.random() * 6, -30 - Math.random() * 10);
+            s.vel.set(dir * (22 + Math.random() * 10), -(7 + Math.random() * 5), 0);
+            s.m.rotation.z = Math.atan2(s.vel.y, s.vel.x);
+            s.life = 1;
+            s.m.visible = true;
+          }
+        }
+        for (const s of streaks) {
+          if (s.life <= 0) continue;
+          s.life -= dt / 1.1;
+          s.m.position.addScaledVector(s.vel, dt);
+          s.m.material.opacity = Math.sin(Math.max(0, s.life) * Math.PI) * 0.9;
+          if (s.life <= 0) s.m.visible = false;
+        }
+      }
+    };
   }
 
   /**
    * Three small stylised props (calculator, robot, bar chart), one per pillar.
    * They render into a low-resolution target that is blurred and used as the stage background,
-   * so they always sit behind the figure and read as out of focus.
+   * so they always sit behind the ring and read as out of focus.
    */
   function makeBackdropProps() {
     const propScene = new THREE.Scene();
@@ -1757,9 +1871,9 @@ async function start() {
     propScene.add(pkey);
 
     const items = [
-      { obj: buildCalculator(), pos: [-1.9, 3.5, -6.5], scale: 0.8, spin: 0.18 },
-      { obj: buildRobot(), pos: [2.3, 3.9, -7.2], scale: 0.75, spin: -0.22 },
-      { obj: buildBarChart(), pos: [1.9, 1.0, -6.4], scale: 0.75, spin: 0.14 }
+      { obj: buildCalculator(), pos: [-6.2, 3.6, -9.5], scale: 1.0, spin: 0.18 },
+      { obj: buildRobot(), pos: [6.4, 4.2, -10.5], scale: 0.95, spin: -0.22 },
+      { obj: buildBarChart(), pos: [5.6, -0.6, -8.5], scale: 0.95, spin: 0.14 }
     ];
     items.forEach((it, i) => {
       it.obj.position.set(...it.pos);
@@ -1909,14 +2023,19 @@ async function start() {
     mesh.position.y = y;
     return mesh;
   }
-  function radialTexture(stops) {
+  function radialTexture(stops, size = 128) {
     const c = document.createElement('canvas');
-    c.width = c.height = 128;
+    c.width = c.height = size;
     const ctx = c.getContext('2d');
-    const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    const half = size / 2;
+    const g = ctx.createRadialGradient(half, half, 0, half, half, half);
     stops.forEach(([o, col]) => g.addColorStop(o, col));
     ctx.fillStyle = g;
-    ctx.fillRect(0, 0, 128, 128);
+    ctx.fillRect(0, 0, size, size);
+    // a touch of noise so large soft glows don't band
+    const img = ctx.getImageData(0, 0, size, size);
+    for (let i = 0; i < img.data.length; i += 4) img.data[i + 3] = Math.max(0, Math.min(255, img.data[i + 3] + (Math.random() - 0.5) * 3));
+    ctx.putImageData(img, 0, 0);
     const t = new THREE.CanvasTexture(c);
     t.colorSpace = THREE.SRGBColorSpace;
     return t;
@@ -1942,25 +2061,6 @@ async function start() {
     const li = document.createElement('li');
     li.appendChild(node);
     return li;
-  }
-  /**
-   * Is there an assets/avatar.glb? On jsDelivr we ask its file-list API (no 404 noise in the console);
-   * for a local preview, frames.json can say {"avatar": true}.
-   */
-  async function avatarAvailable() {
-    const m = avatarUrl.match(/cdn\.jsdelivr\.net\/gh\/([^/]+)\/([^@/]+)@([^/]+)\/(.+)$/);
-    if (!m) return null;
-    try {
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 3500);
-      const r = await fetch(`https://data.jsdelivr.com/v1/packages/gh/${m[1]}/${m[2]}@${m[3]}?structure=flat`, { signal: ctrl.signal });
-      clearTimeout(timer);
-      if (!r.ok) return false;
-      const data = await r.json();
-      return (data.files || []).some((f) => f.name === '/' + m[4]);
-    } catch (e) {
-      return false;
-    }
   }
   function easeOutExpo(x) { return x >= 1 ? 1 : 1 - Math.pow(2, -10 * x); }
   function easeInOutCubic(x) { return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }

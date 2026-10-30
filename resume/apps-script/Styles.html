@@ -122,17 +122,25 @@ html { scrollbar-color: #b9bde0 var(--canvas); }
   text-decoration: none; color: var(--fog); font-size: 14px; transition: color 0.2s, background-color 0.2s;
 }
 .nav__links a:hover { color: var(--on-dark); background: rgba(175, 178, 206, 0.12); }
+.nav__toggle { display: none; background: rgba(175, 178, 206, 0.16); color: var(--on-dark); }
+.nav__toggle:hover { background: rgba(175, 178, 206, 0.26); }
 @media (max-width: 760px) {
+  .nav__inner { position: relative; height: 64px; gap: 10px; }
   .nav nav { display: none; }
   .nav .btn { margin-left: auto; }
-  .nav__inner { height: 64px; }
+  .nav__toggle { display: inline-grid; }
+  .nav.is-open nav {
+    display: block; position: absolute; top: 64px; left: 0; right: 0; margin: 0;
+    padding: 4px var(--gutter) 20px; background: var(--stage);
+  }
+  .nav.is-open .nav__links { flex-direction: column; gap: 2px; }
+  .nav.is-open .nav__links a { height: 48px; padding: 0 12px; font-size: 18px; color: var(--on-dark); }
 }
 
 /* ── Hero ──────────────────────────────────────────────────────────────────── */
 .hero {
-  --figure-x: 50%;
   position: relative;
-  min-height: clamp(600px, calc(100svh - 72px), 980px);
+  min-height: clamp(640px, calc(100svh - 72px), 1000px);
   background: var(--stage);
   color: var(--on-dark);
   overflow: hidden;
@@ -142,67 +150,87 @@ html { scrollbar-color: #b9bde0 var(--canvas); }
 /* the canvas fades out at its edges so the stage melts into the page */
 #scene {
   position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: pan-y;
-  opacity: 0; transition: opacity 1.2s var(--ease-out);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 9%, #000 84%, transparent 100%), linear-gradient(to right, transparent 0, #000 7%, #000 93%, transparent 100%); /* taste-skill-ignore: edge fade for a seamless hero */
+  opacity: 0; transition: opacity 1.4s var(--ease-out);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 7%, #000 86%, transparent 100%), linear-gradient(to right, transparent 0, #000 5%, #000 95%, transparent 100%); /* taste-skill-ignore: edge fade for a seamless hero */
   -webkit-mask-composite: source-in;
-  mask-image: linear-gradient(to bottom, transparent 0, #000 9%, #000 84%, transparent 100%), linear-gradient(to right, transparent 0, #000 7%, #000 93%, transparent 100%); /* taste-skill-ignore */
+  mask-image: linear-gradient(to bottom, transparent 0, #000 7%, #000 86%, transparent 100%), linear-gradient(to right, transparent 0, #000 5%, #000 95%, transparent 100%); /* taste-skill-ignore */
   mask-composite: intersect;
 }
 .is-ready #scene { opacity: 1; }
+
+/* the name sits in the middle of the ring; drags pass through it to the canvas */
 .hero__inner { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
-/* while a certificate is open, quiet the orbit behind the panel text */
-.hero__stage::after {
-  content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.6s var(--ease-out);
-  background: linear-gradient(to right, rgba(10, 19, 48, 0.92) 0%, rgba(10, 19, 48, 0.8) 30%, rgba(10, 19, 48, 0) 50%); /* taste-skill-ignore: scrim behind panel text */
+.hero__copy {
+  position: absolute; left: 50%; top: 50%; width: min(980px, calc(100% - 2 * var(--gutter)));
+  transform: translate(-50%, -50%); text-align: center;
+  transition: opacity 0.5s var(--ease-out), transform 0.5s var(--ease-out);
 }
-.is-panel-open .hero__stage::after { opacity: 1; }
-.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; } /* taste-skill-ignore: visually hidden */
+.hero__copy::before {
+  content: ''; position: absolute; inset: -38% -18%; z-index: -1; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(10, 19, 48, 0.86), rgba(10, 19, 48, 0.55) 55%, rgba(10, 19, 48, 0)); /* taste-skill-ignore: keeps the name readable as cards pass behind it */
+}
+.hero__name { font-size: clamp(44px, 5.4vw, 84px); font-weight: 480; line-height: 0.98; letter-spacing: -0.03em; text-wrap: balance; }
+.hero__headline { margin-top: 20px; font-size: clamp(16px, 1.5vw, 21px); font-weight: 450; color: var(--periwinkle); }
+.hero__tagline { margin: 14px auto 0; max-width: 36em; font-size: clamp(15px, 1.2vw, 17px); font-weight: 380; line-height: 1.55; }
+.hero__actions { margin-top: 28px; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; pointer-events: auto; }
+.is-panel-open .hero__copy { opacity: 0; transform: translate(-50%, -46%); }
+.is-panel-open .hero__actions { pointer-events: none; }
+.is-static .hero__copy { top: 34%; }
 
 .loader {
-  position: absolute; left: var(--figure-x); top: 50%; transform: translate(-50%, -50%);
+  position: absolute; left: 50%; top: 80%; transform: translate(-50%, -50%);
   display: grid; justify-items: center; gap: 12px; color: var(--fog); font-size: 14px;
   transition: opacity 0.6s;
 }
-.loader svg { width: 48px; height: 48px; transform: rotate(-90deg); }
+.loader svg { width: 40px; height: 40px; transform: rotate(-90deg); }
 .loader circle { fill: none; stroke-width: 2; }
 .loader__track { stroke: rgba(195, 195, 204, 0.18); }
 .loader__bar { stroke: var(--periwinkle); stroke-linecap: round; stroke-dasharray: 132; stroke-dashoffset: 132; transition: stroke-dashoffset 0.3s; }
 .is-ready .loader, .is-static .loader { opacity: 0; pointer-events: none; }
 
-/* Static hero: reduced motion, no WebGL, or the 3D script could not load */
-.still { position: absolute; inset: 0; display: grid; grid-template-columns: auto auto; align-items: center; justify-content: center; gap: clamp(32px, 5vw, 72px); padding: 64px var(--gutter); }
-.still[hidden] { display: none; }
-.still__figure { position: relative; width: clamp(150px, 15vw, 210px); }
-.still__figure::after {
-  content: ''; position: absolute; left: 50%; bottom: -10px; width: 120%; height: 22px; transform: translateX(-50%); z-index: -1;
-  border-radius: 50%; background: radial-gradient(closest-side, rgba(2, 5, 16, 0.7), rgba(2, 5, 16, 0)); /* taste-skill-ignore: contact shadow */
+/* name of the certificate under the pointer */
+.ring-label {
+  position: absolute; left: 0; top: 0; z-index: 1; pointer-events: none; white-space: nowrap;
+  padding: 7px 12px; border-radius: var(--r-pill); background: rgba(18, 29, 64, 0.92); color: var(--on-dark); font-size: 14px;
 }
-.still__figure img { width: 100%; height: auto; }
-.still__grid { display: grid; grid-template-columns: repeat(2, 132px); gap: 12px; }
-.still__grid button {
+
+/* Static hero: reduced motion, no WebGL, or the 3D script could not load */
+.still {
+  position: absolute; left: 50%; top: 66%; transform: translateX(-50%); z-index: 3;
+  display: grid; grid-template-columns: repeat(8, 112px); gap: 12px;
+}
+.still button {
   display: block; width: 100%; padding: 0; border: 0; border-radius: var(--r-sm); overflow: hidden; cursor: pointer;
   background: var(--surface); aspect-ratio: 4 / 3; transition: transform 0.25s var(--ease-out);
 }
-.still__grid button:hover { transform: translateY(-3px); }
-.still__grid img { width: 100%; height: 100%; object-fit: contain; }
+.still button:hover { transform: translateY(-3px); }
+.still img { width: 100%; height: 100%; object-fit: contain; }
 
-/* Keyboard access to the orbiting certificates */
+/* Keyboard access to the certificates in the ring */
 .cert-keys {
   position: absolute; z-index: 3; left: max(var(--gutter), calc((100% - 1280px) / 2 + var(--gutter))); right: max(var(--gutter), calc((100% - 1280px) / 2 + var(--gutter))); bottom: 20px;
+  padding: 16px; border-radius: var(--r-lg); background: rgba(10, 19, 48, 0.92);
   opacity: 0; pointer-events: none; transform: translateY(8px);
   transition: opacity 0.25s, transform 0.25s var(--ease-out);
 }
 .cert-keys:focus-within { opacity: 1; pointer-events: auto; transform: none; }
 .cert-keys__label { font-size: 14px; color: var(--fog); margin-bottom: 8px; }
-.cert-keys ul { display: flex; flex-wrap: wrap; gap: 8px; }
+.cert-keys ul { display: flex; flex-wrap: wrap; gap: 6px; }
 .cert-keys button {
-  height: 36px; padding: 0 14px; border: 0; border-radius: var(--r-pill); cursor: pointer;
-  background: rgba(175, 178, 206, 0.16); color: var(--on-dark); font-size: 14px;
+  height: 32px; padding: 0 12px; border: 0; border-radius: var(--r-pill); cursor: pointer;
+  background: rgba(175, 178, 206, 0.16); color: var(--on-dark); font-size: 13px;
 }
 .cert-keys button:hover, .cert-keys button:focus-visible { background: rgba(82, 102, 235, 0.5); }
 .is-static .cert-keys { display: none; }
 
-/* Detail panel for a certificate pulled out of the orbit */
+/* while a certificate is open, quiet the ring behind the panel text */
+.hero__stage::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.6s var(--ease-out);
+  background: linear-gradient(to right, rgba(10, 19, 48, 0.92) 0%, rgba(10, 19, 48, 0.8) 30%, rgba(10, 19, 48, 0) 50%); /* taste-skill-ignore: scrim behind panel text */
+}
+.is-panel-open .hero__stage::after { opacity: 1; }
+
+/* Detail panel for a certificate pulled out of the ring */
 .cert-panel {
   position: absolute; left: max(var(--gutter), calc((100% - 1280px) / 2 + var(--gutter))); top: 50%; width: min(420px, 34vw);
   transform: translateY(-50%); pointer-events: auto;
@@ -216,8 +244,12 @@ html { scrollbar-color: #b9bde0 var(--canvas); }
 .cert-panel__meta dd { font-size: 18px; margin-top: 4px; }
 .cert-panel__actions { margin-top: 32px; display: flex; flex-wrap: wrap; gap: 10px; }
 
+@media (max-width: 1100px) { .still { grid-template-columns: repeat(4, 112px); top: 60%; } }
 @media (max-width: 900px) {
-  .hero { min-height: clamp(480px, 128vw, 640px); }
+  .hero { min-height: clamp(600px, 168vw, 780px); }
+  .hero__copy { top: 25%; }
+  .hero__copy::before { inset: -30% -6%; }
+  .hero__tagline { display: none; }
   .hero__stage::after { display: none; }
   .cert-panel {
     top: auto; bottom: 16px; left: 16px; right: 16px; width: auto; transform: none;
@@ -232,9 +264,8 @@ html { scrollbar-color: #b9bde0 var(--canvas); }
   .cert-panel__meta dd { font-size: 14px; margin-top: 0; }
   .cert-panel__actions { margin-top: 14px; gap: 8px; }
   .cert-panel__actions .btn { --h: 36px; padding: 0 14px; font-size: 14px; }
-  .still { grid-template-columns: auto 1fr; gap: 20px; }
-  .still__figure { width: clamp(120px, 34vw, 170px); }
-  .still__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 280px; }
+  .is-static .hero__copy { top: 26%; }
+  .still { top: 52%; grid-template-columns: repeat(4, minmax(0, 76px)); gap: 8px; }
 }
 
 /* ── Stats strip: still on the stage, then the stage fades into the page ─── */
@@ -348,6 +379,10 @@ html { scrollbar-color: #b9bde0 var(--canvas); }
 .cert-card__title { font-size: 16px; font-weight: 480; line-height: 1.3; }
 .cert-card__sub { display: block; margin-top: 4px; font-size: 14px; color: var(--ink-secondary); }
 .certs__grid li[hidden] { display: none; }
+.certs__grid li.is-extra { display: none; }
+.certs__more { margin: 32px auto 0; display: flex; }
+.btn--tint { background: var(--lavender); color: var(--ink); }
+.btn--tint:hover { background: #dfddf7; }
 @media (max-width: 640px) {
   .certs__head { display: block; }
   .tabs { margin-top: 24px; padding: 0; background: none; }
@@ -439,7 +474,7 @@ html { scrollbar-color: #b9bde0 var(--canvas); }
   .js [data-reveal] { opacity: 1; transform: none; transition: none; }
   /* drop travel and scaling, keep colour and opacity feedback */
   .cert-panel, .lightbox[open], .btn .spinner { animation: none; }
-  .btn:active, .icon-btn:active, .still__grid button:hover, .cert-card:hover .cert-card__img img { transform: none; }
+  .btn:active, .icon-btn:active, .still button:hover, .cert-card:hover .cert-card__img img { transform: none; }
   .hero__copy, .cert-keys { transition: opacity 0.2s; transform: none; }
 }
 </style>
